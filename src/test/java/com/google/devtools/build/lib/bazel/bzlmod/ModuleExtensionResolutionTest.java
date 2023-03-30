@@ -247,9 +247,7 @@ public class ModuleExtensionResolutionTest extends FoundationTestCase {
                 .put(
                     BzlmodRepoRuleValue.BZLMOD_REPO_RULE,
                     new BzlmodRepoRuleFunction(ruleClassProvider, directories))
-                .put(
-                    SkyFunctions.BAZEL_LOCK_FILE,
-                    new BazelLockFileFunction(rootDirectory, registryFactory))
+                .put(SkyFunctions.BAZEL_LOCK_FILE, new BazelLockFileFunction(rootDirectory))
                 .put(
                     SkyFunctions.BAZEL_DEP_GRAPH,
                     new BazelDepGraphFunction(rootDirectory, registryFactory))

@@ -42,7 +42,6 @@ import javax.annotation.Nullable;
 public class BazelLockFileFunction implements SkyFunction {
 
   private final Path rootDirectory;
-  private final RegistryFactory registryFactory;
 
   private static final BzlmodFlagsAndEnvVars EMPTY_FLAGS =
       BzlmodFlagsAndEnvVars.create(
@@ -52,9 +51,8 @@ public class BazelLockFileFunction implements SkyFunction {
       BazelLockFileValue.create(
           BazelLockFileValue.LOCK_FILE_VERSION, "", EMPTY_FLAGS, ImmutableMap.of());
 
-  public BazelLockFileFunction(Path rootDirectory, RegistryFactory registryFactory) {
+  public BazelLockFileFunction(Path rootDirectory) {
     this.rootDirectory = rootDirectory;
-    this.registryFactory = registryFactory;
   }
 
   @Override
@@ -70,7 +68,7 @@ public class BazelLockFileFunction implements SkyFunction {
     }
 
     BazelLockFileValue bazelLockFileValue;
-    Gson gson = GsonTypeAdapterUtil.getLockfileGsonWithTypeAdapters(registryFactory);
+    Gson gson = GsonTypeAdapterUtil.getLockfileGsonWithTypeAdapters();
     try {
       String json = FileSystemUtils.readContent(lockfilePath.asPath(), UTF_8);
       bazelLockFileValue = gson.fromJson(json, BazelLockFileValue.class);
@@ -92,7 +90,6 @@ public class BazelLockFileFunction implements SkyFunction {
       String hashedModule,
       ImmutableMap<ModuleKey, Module> resolvedDepGraph,
       Path rootDirectory,
-      RegistryFactory registryFactory,
       BzlmodFlagsAndEnvVars flags)
       throws BazelModuleResolutionFunctionException {
     RootedPath lockfilePath =
@@ -101,7 +98,7 @@ public class BazelLockFileFunction implements SkyFunction {
     BazelLockFileValue value =
         BazelLockFileValue.create(
             BazelLockFileValue.LOCK_FILE_VERSION, hashedModule, flags, resolvedDepGraph);
-    Gson gson = GsonTypeAdapterUtil.getLockfileGsonWithTypeAdapters(registryFactory);
+    Gson gson = GsonTypeAdapterUtil.getLockfileGsonWithTypeAdapters();
     try {
       FileSystemUtils.writeContent(lockfilePath.asPath(), UTF_8, gson.toJson(value));
     } catch (IOException e) {

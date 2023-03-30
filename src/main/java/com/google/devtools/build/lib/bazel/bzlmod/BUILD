@@ -15,6 +15,7 @@ java_library(
     name = "common",
     srcs = [
         "ArchiveRepoSpecBuilder.java",
+        "AttributeValues.java",
         "ModuleKey.java",
         "RepoSpec.java",
         "Version.java",
@@ -44,6 +45,7 @@ java_library(
 java_library(
     name = "module_extension",
     srcs = [
+        "AttributeValues.java",
         "ModuleExtension.java",
         "ModuleExtensionId.java",
         "ModuleExtensionUsage.java",
@@ -130,6 +132,7 @@ java_library(
 java_library(
     name = "resolution_impl",
     srcs = [
+        "AttributeValuesAdapter.java",
         "BazelDepGraphFunction.java",
         "BazelLockFileFunction.java",
         "BazelModuleResolutionFunction.java",

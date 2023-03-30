@@ -109,7 +109,33 @@ public class BazelModuleResolutionFunction implements SkyFunction {
             Objects.requireNonNull(ALLOWED_YANKED_VERSIONS.get(env))),
         env.getListener());
 
-    return selectionResultValue;
+    // Add repo spec to each module and remove registry
+    try {
+      ImmutableMap.Builder<ModuleKey, Module> mapBuilder = ImmutableMap.builder();
+      for (Map.Entry<ModuleKey, Module> entry : resolvedDepGraph.entrySet()) {
+        Module module = entry.getValue();
+        // Only change modules with registry (not overridden)
+        if (module.getRegistry() != null) {
+          RepoSpec moduleRepoSpec =
+              module
+                  .getRegistry()
+                  .getRepoSpec(module.getKey(), module.getCanonicalRepoName(), env.getListener());
+          module = module.toBuilder().setRepoSpec(moduleRepoSpec).setRegistry(null).build();
+        }
+        mapBuilder.put(entry.getKey(), module);
+      }
+      resolvedDepGraph = mapBuilder.buildOrThrow();
+    } catch (IOException e) {
+      throw new BazelModuleResolutionFunctionException(
+          ExternalDepsException.withMessage(
+              Code.ERROR_ACCESSING_REGISTRY,
+              "Unable to get module repo spec from registry: %s",
+              e.getMessage()),
+          Transience.PERSISTENT);
+    }
+
+    return BazelModuleResolutionValue.create(
+        resolvedDepGraph, selectionResultValue.getUnprunedDepGraph());
   }
 
   private static void verifyRootModuleDirectDepsAreAccurate(

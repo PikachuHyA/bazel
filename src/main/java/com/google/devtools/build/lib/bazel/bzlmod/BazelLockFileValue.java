@@ -22,6 +22,7 @@ import com.google.devtools.build.lib.skyframe.serialization.autocodec.Serializat
 import com.google.devtools.build.skyframe.SkyKey;
 import com.google.devtools.build.skyframe.SkyValue;
 import com.ryanharter.auto.value.gson.GenerateTypeAdapter;
+import java.util.Optional;
 
 /**
  * The result of reading the lockfile. Contains the lockfile version, module hash, definitions of
@@ -55,4 +56,12 @@ public abstract class BazelLockFileValue implements SkyValue {
 
   /** The post-selection dep graph retrieved from the lock file. */
   public abstract ImmutableMap<ModuleKey, Module> getModuleDepGraph();
+
+  public Optional<RepoSpec> getRepoSpecOfModule(String repoName) {
+    Optional<Module> repoModule =
+        getModuleDepGraph().values().stream()
+            .filter(module -> module.getRepoName().equals(repoName))
+            .findAny();
+    return Optional.ofNullable(repoModule.isPresent() ? repoModule.get().getRepoSpec() : null);
+  }
 }
