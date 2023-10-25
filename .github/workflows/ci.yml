@@ -1,0 +1,46 @@
+name: Bazel
+
+on:
+  push:
+    branches: [ ci ]
+  pull_request:
+    branches: [ ci ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Mount bazel cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/bazel
+          key: ${{ runner.os }}-bazel-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE', 'WORKSPACE.bazel', 'MODULE.bazel') }}
+          restore-keys: |
+            ${{ runner.os }}-bazel-
+
+      - name: Build
+        working-directory: ${{github.workspace}}
+        run: bazel build //src:bazel
+
+      - name: Test
+        working-directory: ${{github.workspace}}
+        run: bazel test src/test/java/com/google/devtools/build/lib/rules/cpp/...
+
+      - name: Test
+        working-directory: ${{github.workspace}}
+        run: bazel test //src/test/shell/integration:discard_analysis_cache_test
+
+      - name: Test
+        working-directory: ${{github.workspace}}
+        run: bazel test //src/test/tools/bzlmod:verify_default_lock_file
+
+      - name: Upload bazel
+        uses: actions/upload-artifact@v3
+        with:
+          name: bazel
+          path: |
+            bazel-bin/src/bazel
