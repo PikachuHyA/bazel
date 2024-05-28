@@ -1,0 +1,18 @@
+name: Bazel
+
+on:
+  push:
+    branches: [ ci, ci-win, cxx20-modules-support-patch-1-ci ]
+  pull_request:
+    branches: [ ci, ci-win, cxx20-modules-support-patch-1-ci ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Update
+        run: bazel mod deps --lockfile_mode=update
+      - name: Test DynamicSpawnStrategyTest
+        run: bazel --output_user_root=C:/b test --flaky_test_attempts=3 --build_tests_only --local_test_jobs=8 --show_progress_rate_limit=5 --curses=yes --color=yes --terminal_columns=143 --show_timestamps --verbose_failures --jobs=30 --announce_rc --experimental_repository_cache_hardlinks --disk_cache= --experimental_build_event_json_file_path_conversion=false --config=ci-windows --test_tag_filters=-no_windows,-slow --test_env=LocalAppData --test_env=BAZELISK_USER_AGENT -- //src/test/java/com/google/devtools/build/lib/dynamic:DynamicSpawnStrategyTest
