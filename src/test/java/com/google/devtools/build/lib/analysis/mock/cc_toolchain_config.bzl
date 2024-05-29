@@ -126,6 +126,25 @@ _cpp20_modules_feature = feature(
     enabled = False,
 )
 
+_cpp20_modmap_file_feature = feature(
+        name = "cpp20_modmap_file",
+        flag_sets = [
+            flag_set(
+                actions = [
+                    ACTION_NAMES.cpp_compile,
+                    ACTION_NAMES.cpp20_module_compile,
+                    ACTION_NAMES.cpp20_module_codegen,
+                ],
+                flag_groups = [
+                    flag_group(
+                        flags = ["@%{cpp20_modmap_file}"],
+                        expand_if_available = "cpp20_modmap_file",
+                    ),
+                ],
+            ),
+        ],
+        enabled = True,
+    )
 _no_copts_tokenization_feature = feature(name = _FEATURE_NAMES.no_copts_tokenization)
 
 _disable_pbh_feature = feature(name = _FEATURE_NAMES.disable_pbh)
@@ -153,6 +172,7 @@ _define_with_space = feature(
                 ACTION_NAMES.cpp_compile,
                 ACTION_NAMES.linkstamp_compile,
                 ACTION_NAMES.cpp_header_parsing,
+                ACTION_NAMES.cpp20_deps_scanning,
                 ACTION_NAMES.cpp_module_compile,
                 ACTION_NAMES.cpp_module_codegen,
                 ACTION_NAMES.clif_match,
@@ -463,6 +483,7 @@ _user_compile_flags_feature = feature(
                 ACTION_NAMES.c_compile,
                 ACTION_NAMES.cpp_compile,
                 ACTION_NAMES.cpp_header_parsing,
+                ACTION_NAMES.cpp20_deps_scanning,
                 ACTION_NAMES.cpp_module_compile,
                 ACTION_NAMES.cpp_module_codegen,
                 ACTION_NAMES.lto_backend,
@@ -1518,6 +1539,7 @@ def _impl(ctx):
                     ACTION_NAMES.linkstamp_compile,
                     ACTION_NAMES.cpp_compile,
                     ACTION_NAMES.cpp_header_parsing,
+                    ACTION_NAMES.cpp20_deps_scanning,
                     ACTION_NAMES.cpp_module_compile,
                     ACTION_NAMES.cpp_module_codegen,
                     ACTION_NAMES.lto_backend,
