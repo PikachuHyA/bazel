@@ -13,4 +13,4 @@
 :: limitations under the License.
 
 @echo OFF
-"%{cc}" /scanDependencies- %* >out.tmp && move out.tmp %DEPS_SCANNER_OUTPUT_FILE%
+"%{cc}" /scanDependencies- /TP %* >out.tmp && move out.tmp %DEPS_SCANNER_OUTPUT_FILE%
