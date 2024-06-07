@@ -23,7 +23,6 @@ int main(int argc, char *argv[]) {
   std::vector<std::string> ddi;
   std::vector<std::string> module_file;
   std::string output;
-  bool verbose{};
   for (int i = 1; i < argc; ++i) {
     std::string arg = argv[i];
     if (arg == "-m" && i + 1 < argc) {
@@ -33,8 +32,6 @@ int main(int argc, char *argv[]) {
       module_file.emplace_back(argv[++i]);
     } else if (arg == "-o" && i + 1 < argc) {
       output = argv[++i];
-    } else if (arg == "--verbose") {
-      verbose = true;
     } else {
       std::cerr << "ERROR: Unknown or incomplete argument: " << arg
                 << std::endl;

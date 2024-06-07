@@ -43,7 +43,7 @@ int main(int argc, char *argv[]) {
   }
   auto dep = parse_ddi(ddi_stream);
   auto info = parse_info(info_stream);
-  auto modmap = process(dep, info, compiler);
+  auto modmap = process(dep, info);
 
   std::string modmap_filename = output;
   std::string modmap_dot_input_filename = modmap_filename + ".input";
