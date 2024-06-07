@@ -1077,6 +1077,9 @@ public final class CcCompilationHelper {
       if (Objects.equals(ccToolchain.getCompiler(), "gcc")) {
         outputCategory = ArtifactCategory.CPP_MODULE_GCM;
       }
+      else if (Objects.equals(ccToolchain.getCompiler(), "msvc-cl")) {
+        outputCategory = ArtifactCategory.CPP_MODULE_IFC;
+      }
       var moduleFile = CppHelper.getCompileModuleOutputArtifact(
               actionConstructionContext,
               label,

@@ -33,6 +33,7 @@ public enum ArtifactCategory {
   PIC_OBJECT_FILE("", ".pic.o"),
   CPP_MODULE("", ".pcm"),
   CPP_MODULE_GCM("", ".gcm"),
+  CPP_MODULE_IFC("", ".ifc"),
   CPP20_MODULES_INFO("", ".CXXModules.json"),
   CPP20_MODULES_DDI("", ".ddi"),
   CPP20_MODULES_MODMAP("", ".modmap"),
