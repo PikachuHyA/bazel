@@ -62,6 +62,16 @@ filegroup(
     srcs = [":builtin_include_directory_paths_msvc"]
 )
 
+filegroup(
+    name = "agg-ddi",
+    srcs = ["//tools/cpp/cpp20modules_tools:agg-ddi-bin"],
+)
+
+filegroup(
+    name = "gen-modmap",
+    srcs = ["//tools/cpp/cpp20modules_tools:gen-modmap-bin"],
+)
+
 # Hardcoded toolchain, legacy behaviour.
 cc_toolchain_suite(
     name = "toolchain",

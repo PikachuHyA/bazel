@@ -257,6 +257,66 @@ def _impl(ctx):
             tools = [tool(path = ctx.attr.msvc_link_path)],
         )
 
+        cpp20_scan_deps = action_config(
+            action_name = ACTION_NAMES.cpp20_deps_scanning,
+            tools = [
+                tool(
+                    path = deps_scanner,
+                ),
+            ],
+            implies = [
+                "compiler_input_flags",
+                "compiler_output_flags",
+                "nologo",
+                "msvc_env",
+                "user_compile_flags",
+                "sysroot",
+            ],
+        )
+
+        cpp20_module_compile = action_config(
+            action_name = ACTION_NAMES.cpp20_module_compile,
+            tools = [
+                tool(
+                    path = ctx.attr.msvc_cl_path,
+                ),
+            ],
+            flag_sets = [
+                flag_set(
+                    flag_groups = [
+                        flag_group(
+                            flags = [
+                            ],
+                        ),
+                    ],
+                ),
+            ],
+            implies = [
+                "compiler_input_flags",
+                "compiler_output_flags",
+                "nologo",
+                "msvc_env",
+                "user_compile_flags",
+                "sysroot",
+            ],
+        )
+
+        cpp20_module_codegen = action_config(
+            action_name = ACTION_NAMES.cpp20_module_codegen,
+            tools = [
+                tool(
+                    path = ctx.attr.msvc_cl_path,
+                ),
+            ],
+            implies = [
+                "compiler_input_flags",
+                "compiler_output_flags",
+                "nologo",
+                "msvc_env",
+                "user_compile_flags",
+                "sysroot",
+            ],
+        )
         action_configs = [
             assemble_action,
             preprocess_assemble_action,
@@ -267,6 +327,9 @@ def _impl(ctx):
             cpp_link_dynamic_library_action,
             cpp_link_nodeps_dynamic_library_action,
             cpp_link_static_library_action,
+            cpp20_scan_deps,
+            cpp20_module_compile,
+            cpp20_module_codegen
         ]
     else:
         action_configs = []
@@ -1433,9 +1496,54 @@ def _impl(ctx):
     if "dumpbin" in ctx.attr.tool_paths:
         make_variables.append(make_variable(name = "DUMPBIN", value = ctx.attr.tool_paths["dumpbin"]))
 
+    # Tell bazel we support C++20 Modules now
+    cpp20_modules_feature = feature(
+        name = "cpp20_modules",
+        # set default value to False
+        # to enable the feature
+        # use --features=cpp20_module
+        # or add cpp20_module to features attr
+        enabled = False,
+    )
+    cpp20_modmap_file_feature = feature(
+        name = "cpp20_modmap_file",
+        flag_sets = [
+            flag_set(
+                actions = [
+                    ACTION_NAMES.cpp_compile,
+                    ACTION_NAMES.cpp20_module_compile,
+                    ACTION_NAMES.cpp20_module_codegen,
+                ],
+                flag_groups = [
+                    flag_group(
+                        flags = ["@%{cpp20_modmap_file}"],
+                        expand_if_available = "cpp20_modmap_file",
+                    ),
+                ],
+            ),
+        ],
+        enabled = True,
+    )
+    cpp20_module_compile_flags_feature = feature(
+        name = "cpp20_module_compile_flags",
+        flag_sets = [
+            flag_set(
+                actions = [
+                    ACTION_NAMES.cpp20_module_compile,
+                ],
+                flag_groups = [
+                    flag_group(
+                        flags = ["/ifcOutput %{cpp20_module_output_file}"],
+                        expand_if_available = "cpp20_module_output_file",
+                    )
+                ],
+            ),
+        ],
+        enabled = True,
+    )
     return cc_common.create_cc_toolchain_config_info(
         ctx = ctx,
-        features = features,
+        features = features + [cpp20_modules_feature, cpp20_modmap_file_feature, cpp20_module_compile_flags_feature],
         action_configs = action_configs,
         artifact_name_patterns = artifact_name_patterns,
         cxx_builtin_include_directories = ctx.attr.cxx_builtin_include_directories,
