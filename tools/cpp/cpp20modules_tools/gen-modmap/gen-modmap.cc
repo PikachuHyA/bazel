@@ -17,13 +17,15 @@ void write_modmap(std::ostream &modmap_file_stream,
                   const std::string &compiler) {
   for (const auto &item : modmap) {
     if (compiler == "clang") {
-
       modmap_file_stream << "-fmodule-file=" << item.name << "=" << item.path
                          << "\n";
     } else if (compiler == "gcc") {
-
       modmap_file_stream << item.name << " " << item.path << "\n";
-    } else {
+    }
+    else if (compiler == "msvc") {
+      modmap_file_stream << "/reference " << item.name << "=" << item.path << "\n";
+    }
+    else {
       std::cerr << "bad compiler: " << compiler << std::endl;
       std::exit(1);
     }
