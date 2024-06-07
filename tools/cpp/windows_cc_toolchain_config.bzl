@@ -1589,7 +1589,7 @@ def _impl(ctx):
                 ],
                 flag_groups = [
                     flag_group(
-                        flags = ["/ifcOutput %{cpp20_module_output_file}"],
+                        flags = ["/ifcOutput%{cpp20_module_output_file}"],
                         expand_if_available = "cpp20_module_output_file",
                     )
                 ],
