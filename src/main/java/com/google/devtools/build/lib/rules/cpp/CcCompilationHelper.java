@@ -24,10 +24,16 @@ import com.google.common.io.Files;
 import com.google.devtools.build.lib.actions.ActionOwner;
 import com.google.devtools.build.lib.actions.Artifact;
 import com.google.devtools.build.lib.actions.Artifact.SpecialArtifact;
+import com.google.devtools.build.lib.actions.CommandLine;
+import com.google.devtools.build.lib.actions.CommandLines;
+import com.google.devtools.build.lib.actions.AbstractAction;
+import com.google.devtools.build.lib.actions.ActionEnvironment;
 import com.google.devtools.build.lib.analysis.RuleContext;
 import com.google.devtools.build.lib.analysis.RuleErrorConsumer;
 import com.google.devtools.build.lib.analysis.TransitiveInfoCollection;
 import com.google.devtools.build.lib.analysis.actions.ActionConstructionContext;
+import com.google.devtools.build.lib.analysis.actions.PathMappers;
+import com.google.devtools.build.lib.analysis.actions.SpawnAction;
 import com.google.devtools.build.lib.analysis.config.BuildConfigurationValue;
 import com.google.devtools.build.lib.analysis.config.PerLabelOptions;
 import com.google.devtools.build.lib.analysis.test.InstrumentedFilesCollector;
@@ -59,6 +65,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import net.starlark.java.eval.EvalException;
@@ -866,7 +873,7 @@ public final class CcCompilationHelper {
     // Create compile actions (both PIC and no-PIC).
     try {
         CcCompilationOutputs ccOutputs;
-        if (featureConfiguration.isEnabled(CppRuleClasses.CPP20_MODULE)) {
+        if (featureConfiguration.isEnabled(CppRuleClasses.CPP20_MODULES)) {
             // Handle C++20 Module compile
             ccOutputs = createCcCompileActionsWithCpp20Module();
             publicCompilationContext =
@@ -1008,8 +1015,8 @@ public final class CcCompilationHelper {
   private CcCompilationOutputs createCcCompileActionsWithCpp20Module()
           throws RuleErrorException, EvalException, InterruptedException {
     Preconditions.checkState(
-        featureConfiguration.isEnabled(CppRuleClasses.CPP20_MODULE),
-        "to use C++20 Modules, the feature cpp20_module must be enabled");
+        featureConfiguration.isEnabled(CppRuleClasses.CPP20_MODULES),
+        "to use C++20 Modules, the feature cpp20_modules must be enabled");
     Preconditions.checkNotNull(ccCompilationContext);
     CcCompilationOutputs.Builder result = CcCompilationOutputs.builder();
     // merge module interfaces and ordinary sources
@@ -1032,12 +1039,13 @@ public final class CcCompilationHelper {
       boolean usePic,
       ImmutableMap<Artifact, String> outputNameMap)
       throws RuleErrorException, EvalException, InterruptedException {
-    NestedSetBuilder<Artifact.DerivedArtifact> pcmSetBuilder = NestedSetBuilder.stableOrder();
-    NestedSetBuilder<Artifact> ddiSetBuilder = NestedSetBuilder.stableOrder();
-    ImmutableList.Builder<Pair<Artifact, Artifact>> pcmAndDdiPairListBuilder =
-        ImmutableList.builder();
 
-    // declare <target-name>.CXXModules.json forward
+    ImmutableMap.Builder<Artifact, Artifact.DerivedArtifact> moduleFileMapBuilder = new ImmutableMap.Builder<>();
+    ImmutableMap.Builder<Artifact, Artifact> ddiFileMapBuilder = new ImmutableMap.Builder<>();
+    NestedSetBuilder<Artifact> ddiFileSetBuilder = NestedSetBuilder.stableOrder();
+    ImmutableList.Builder<CommandLine> commandLineBuilder = new ImmutableList.Builder<>();
+
+    // declare <target-name>.CXXModules.json
     // all modules information is put here
     String modulesInfoFileName = label.getName();
     if (usePic) {
@@ -1046,385 +1054,286 @@ public final class CcCompilationHelper {
                       ccToolchain, ArtifactCategory.PIC_FILE, modulesInfoFileName);
     }
     Artifact modulesInfoFile =
-        CppHelper.getCompileOutputArtifact(
-            actionConstructionContext,
-            label,
-            CppHelper.getArtifactNameForCategory(
-                ccToolchain, ArtifactCategory.CPP20_MODULES_INFO, modulesInfoFileName),
-            configuration);
+            CppHelper.getCompileOutputArtifact(
+                    actionConstructionContext,
+                    label,
+                    CppHelper.getArtifactNameForCategory(
+                            ccToolchain, ArtifactCategory.CPP20_MODULES_INFO, modulesInfoFileName),
+                    configuration);
     if (usePic) {
       result.addPicModulesInfoFile(modulesInfoFile);
     } else {
       result.addModulesInfoFile(modulesInfoFile);
     }
-    // the builder list contains
-    // 1. compile c++ source (e.g. .cc   -> .o)     compilationUnitSources.size()
-    // 2. compile c++ module (e.g. .cppm -> .pcm)   moduleInterfaceSources.size()
-    // 3. compile c++ module (e.g. .cpm  -> .o)     moduleInterfaceSources.size()
-    List<CppCompileActionBuilder> builderList =
-        new ArrayList<>(compilationUnitSources.size() + 2 * moduleInterfaceSources.size());
-
-    createCppCompileActionBuilder(
-        result,
-        usePic,
-        outputNameMap,
-        pcmSetBuilder,
-        ddiSetBuilder,
-        pcmAndDdiPairListBuilder,
-        modulesInfoFile,
-        builderList,
-        compilationUnitSources,
-        /* isModuleInterface= */ false);
-    createCppCompileActionBuilder(
-        result,
-        usePic,
-        outputNameMap,
-        pcmSetBuilder,
-        ddiSetBuilder,
-        pcmAndDdiPairListBuilder,
-        modulesInfoFile,
-        builderList,
-        moduleInterfaceSources,
-        /* isModuleInterface= */ true);
-    // create <target-name>.CXXModules.json
-    var modulesInfoAction =
-        new Cpp20ModulesInfoAction(
-            actionConstructionContext.getActionOwner(),
-            ddiSetBuilder.build(),
-            pcmAndDdiPairListBuilder.build(),
-            ccCompilationContext.getModulesInfoFiles(usePic),
-            modulesInfoFile);
-    actionConstructionContext.registerAction(modulesInfoAction);
-    var depPcmFiles = ccCompilationContext.getPcmFiles(usePic);
-    if (depPcmFiles != null) {
-      pcmSetBuilder.addTransitive(depPcmFiles);
-    }
-    var pcmFiles = pcmSetBuilder.build();
-    for (CppCompileActionBuilder builder : builderList) {
-      builder.setPcmFiles(pcmFiles);
-      CppCompileAction cppCompileAction = builder.buildOrThrowRuleError(ruleErrorConsumer);
-      actionConstructionContext.registerAction(cppCompileAction);
-    }
-  }
-
-  private void createCppCompileActionBuilder(
-      CcCompilationOutputs.Builder result,
-      boolean usePic,
-      ImmutableMap<Artifact, String> outputNameMap,
-      NestedSetBuilder<Artifact.DerivedArtifact> pcmSetBuilder,
-      NestedSetBuilder<Artifact> ddiSetBuilder,
-      ImmutableList.Builder<Pair<Artifact, Artifact>> pcmAndDdiPairListBuilder,
-      Artifact modulesInfoFile,
-      List<CppCompileActionBuilder> builderList,
-      Map<Artifact, CppSource> sourceMap,
-      boolean isModuleInterface)
-      throws RuleErrorException, EvalException, InterruptedException {
-    for (CppSource source : sourceMap.values()) {
-      CppCompileActionBuilder builder;
-      Label sourceLabel = source.getLabel();
+    for (CppSource source : moduleInterfaceSources.values()) {
       Artifact sourceArtifact = source.getSource();
-      PathFragment sourcePath = sourceArtifact.getExecPath();
       String outputName = outputNameMap.get(sourceArtifact);
       if (usePic) {
         outputName =
-            CppHelper.getArtifactNameForCategory(
-                ccToolchain, ArtifactCategory.PIC_FILE, outputName);
+                CppHelper.getArtifactNameForCategory(
+                        ccToolchain, ArtifactCategory.PIC_FILE, outputName);
       }
-      builder = initializeCompileAction(sourceArtifact);
-      // declare .d file forward
-      // reuse .d file produced by scan dependencies (c++20-deps-scanning)
-      Artifact dotdFile;
-      if (builder.dotdFilesEnabled()
-              && builder.useDotdFile(sourceArtifact)) {
-        String dotdFileName = CppHelper.getArtifactNameForCategory(
-                ccToolchain, ArtifactCategory.INCLUDED_FILE_LIST, outputName);
-        dotdFile =
-                CppHelper.getCompileOutputArtifact(
-                        actionConstructionContext, label, dotdFileName, configuration);
-      } else {
-        dotdFile = null;
+      ArtifactCategory outputCategory = ArtifactCategory.CPP_MODULE;
+      if (Objects.equals(ccToolchain.getCompiler(), "gcc")) {
+        outputCategory = ArtifactCategory.CPP_MODULE_GCM;
       }
-      // scan dependencies
-      // both module source files and ordinary c++ source files are needed
-      // others skip (e.g. C or assembler)
-      if (isModuleInterface || CppFileTypes.CPP_SOURCE.matches(sourcePath)) {
-        // dependencies information are put in .ddi file
-        // the format is https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2022/p1689r5.html
-        Artifact ddiFile =
-            CppHelper.getCompileOutputArtifact(
-                actionConstructionContext,
-                label,
-                CppHelper.getArtifactNameForCategory(
-                    ccToolchain, ArtifactCategory.CPP20_MODULE_DEP, outputName),
-                configuration);
-        ddiSetBuilder.add(ddiFile);
-        // all -fmodule-file=<module-name>=<path/to/bmi> flags are put in .modmap file
-        var modmapFile =
-            CppHelper.getCompileOutputArtifact(
-                actionConstructionContext,
-                label,
-                CppHelper.getArtifactNameForCategory(
-                    ccToolchain, ArtifactCategory.CPP20_MODULE_MAP, outputName),
-                configuration);
-        // all path/to/bmi are put in .modmap.input file,
-        // which is convenient to get all bmi in CppCompileAction
-        var modmapInputFile =
-            CppHelper.getCompileOutputArtifact(
-                actionConstructionContext,
-                label,
-                CppHelper.getArtifactNameForCategory(
-                    ccToolchain, ArtifactCategory.CPP20_MODULE_MAP_INPUT, outputName),
-                configuration);
-        Cpp20ModuleDepMapAction cpp20ModuleDepMapAction =
-            new Cpp20ModuleDepMapAction(
-                actionConstructionContext.getActionOwner(),
-                ddiFile,
-                modulesInfoFile,
-                modmapFile,
-                modmapInputFile);
-        actionConstructionContext.registerAction(cpp20ModuleDepMapAction);
+      var moduleFile = CppHelper.getCompileModuleOutputArtifact(
+              actionConstructionContext,
+              label,
+              CppHelper.getArtifactNameForCategory(ccToolchain, outputCategory, outputName),
+              configuration
+      );
+      moduleFileMapBuilder.put(sourceArtifact, moduleFile);
+      // dependencies information are put in .ddi file
+      // the format is https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2022/p1689r5.html
+      var ddiOutputName = CppHelper.getArtifactNameForCategory(
+              ccToolchain, ArtifactCategory.CPP20_MODULES_DDI, outputName);
+      Artifact ddiFile =
+              CppHelper.getCompileOutputArtifact(
+                      actionConstructionContext,
+                      label,
+                      ddiOutputName,
+                      configuration);
+      commandLineBuilder.add(CommandLine.of(ImmutableList.of("-d", ddiFile.getExecPathString(), moduleFile.getExecPathString())));
+      createScanDepsAction(source.getLabel(), sourceArtifact, usePic, ddiFile, ddiOutputName);
+      ddiFileSetBuilder.add(ddiFile);
+      ddiFileMapBuilder.put(sourceArtifact, ddiFile);
+    }
+    createAggDdiAction(
+            ddiFileSetBuilder.build(),
+            commandLineBuilder.build(),
+            ccCompilationContext.getModulesInfoFiles(usePic),
+            modulesInfoFile);
+    ImmutableMap<Artifact, Artifact.DerivedArtifact> moduleFileMap = moduleFileMapBuilder.build();
+    ImmutableMap<Artifact, Artifact> ddiFileMap = ddiFileMapBuilder.build();
+    var allModuleFilesBuilder = NestedSetBuilder.<Artifact.DerivedArtifact>stableOrder().addAll(moduleFileMap.values());
+    var depModuleFiles = ccCompilationContext.getPcmFiles(usePic);
+    if (depModuleFiles != null) {
+      allModuleFilesBuilder.addTransitive(depModuleFiles);
+    }
+    var allModuleFiles = allModuleFilesBuilder.build();
+    for (CppSource source : moduleInterfaceSources.values()) {
+      Artifact sourceArtifact = source.getSource();
 
-        if (isModuleInterface) {
-          // use two-phase compilation
-          // e.g.
-          // 1. .cppm -> .pcm
-          // 2. .pcm  -> .o
-          // echo phase need one builder
-          // so the builder will change
-          // and the new builder return
-          builder =
-              createCpp20ModuleCompileActionBuilder(
-                  builder,
-                  sourceLabel,
-                  outputName,
-                  result,
-                  sourceArtifact,
-                  usePic,
-                  pcmSetBuilder,
-                  pcmAndDdiPairListBuilder,
-                  builderList,
-                  ddiFile,
-                  dotdFile,
-                  modmapFile,
-                  modmapInputFile);
-        } else {
-              createCompileActionBuilder(
-                  builder,
-                  sourceLabel,
-                  outputName,
-                  result,
-                  sourceArtifact,
-                  usePic,
-                  ddiFile,
-                  dotdFile,
-                  modmapFile,
-                  /* isCpp20Module= */ false);
-        }
-        builder.setModmapFile(modmapFile);
-        builder.setModmapInputFile(modmapInputFile);
-      } else {
-            createCompileActionBuilder(
-                builder,
+      Label sourceLabel = source.getLabel();
+      CppCompileActionBuilder builder = initializeCompileAction(sourceArtifact);
+      builder.setActionName(CppActionNames.CPP20_MODULE_COMPILE);
+
+      builder
+              .addMandatoryInputs(additionalCompilationInputs)
+              .addAdditionalIncludeScanningRoots(additionalIncludeScanningRoots);
+
+      boolean bitcodeOutput =
+              featureConfiguration.isEnabled(CppRuleClasses.THIN_LTO)
+                      && CppFileTypes.LTO_SOURCE.matches(sourceArtifact.getFilename());
+
+      String outputName = outputNameMap.get(sourceArtifact);
+      if (usePic) {
+        outputName =
+                CppHelper.getArtifactNameForCategory(
+                        ccToolchain, ArtifactCategory.PIC_FILE, outputName);
+      }
+      Artifact.DerivedArtifact moduleFile = moduleFileMap.get(sourceArtifact);
+      Preconditions.checkNotNull(moduleFile);
+      builder.setAdditionalOutputs(ImmutableList.of(moduleFile));
+      builder.setModuleFiles(allModuleFiles);
+      if (usePic) {
+        result.addPicCpp20ModuleFile(moduleFile);
+      }
+      else {
+        result.addCpp20ModuleFile(moduleFile);
+      }
+
+      // all -fmodule-file=<module-name>=<path/to/bmi> flags are put in .modmap file
+      var modmapFile =
+              CppHelper.getCompileOutputArtifact(
+                      actionConstructionContext,
+                      label,
+                      CppHelper.getArtifactNameForCategory(
+                              ccToolchain, ArtifactCategory.CPP20_MODULES_MODMAP, outputName),
+                      configuration);
+      // all path/to/bmi are put in .modmap.input file,
+      // which is convenient to get all bmi in CppCompileAction
+      var modmapInputFile =
+              CppHelper.getCompileOutputArtifact(
+                      actionConstructionContext,
+                      label,
+                      CppHelper.getArtifactNameForCategory(
+                              ccToolchain, ArtifactCategory.CPP20_MODULES_MODMAP_INPUT, outputName),
+                      configuration);
+      var ddiFile = ddiFileMap.get(sourceArtifact);
+      Preconditions.checkNotNull(ddiFile);
+      createGenModmapAction(ddiFile, modulesInfoFile, modmapFile, modmapInputFile);
+      builder.setModmapFile(modmapFile);
+      builder.setModmapInputFile(modmapInputFile);
+
+      ImmutableList.Builder<Artifact> directOutputs = new ImmutableList.Builder<>();
+      PathFragment ccRelativeName = sourceArtifact.getRootRelativePath();
+      // TODO(plf): Continue removing CLIF logic from C++. Follow up changes would include
+      // refactoring CppSource.Type and ArtifactCategory to be classes instead of enums
+      // that could be instantiated with arbitrary values.
+      ArtifactCategory outputCategory =
+              source.getType() == CppSource.Type.CLIF_INPUT_PROTO
+                      ? ArtifactCategory.CLIF_OUTPUT_PROTO
+                      : ArtifactCategory.OBJECT_FILE;
+      builder.setOutputs(
+              actionConstructionContext, ruleErrorConsumer, label, outputCategory, outputName);
+      System.out.println("use pic: " + usePic + ", dotd: " + builder.getDotdFile());
+      ImmutableMap<String, String> additionalBuildVariables = ImmutableMap.<String, String>builder()
+              .put(CompileBuildVariables.CPP20_MODULE_OUTPUT_FILE.getVariableName(), moduleFile.getExecPathString())
+              .put(CompileBuildVariables.CPP20_MODMAP_FILE.getVariableName(), modmapFile.getExecPathString())
+              .build();
+      if (usePic) {
+        createSourcePicAction(
+                directOutputs,
+                ccRelativeName,
                 sourceLabel,
                 outputName,
                 result,
                 sourceArtifact,
-                usePic,
-                /* ddiFile= */ null,
-                dotdFile,
-                /* modmapFile= */ null,
-                /* isCpp20Module= */ false);
+                builder,
+                outputCategory,
+                ccCompilationContext.getCppModuleMap(),
+                /* addObject= */ true,
+                isCodeCoverageEnabled,
+                // The source action does not generate dwo when it has bitcode
+                // output (since it isn't generating a native object with debug
+                // info). In that case the LtoBackendAction will generate the dwo.
+                CcToolchainProvider.shouldCreatePerObjectDebugInfo(
+                        featureConfiguration, cppConfiguration),
+                bitcodeOutput,
+                additionalBuildVariables);
       }
-      semantics.finalizeCompileActionBuilder(
-          configuration, featureConfiguration, builder);
-      builderList.add(builder);
+      else {
+        createSourceNoPicAction(
+                directOutputs,
+                ccRelativeName,
+                sourceLabel,
+                outputName,
+                result,
+                sourceArtifact,
+                builder,
+                outputCategory,
+                ccCompilationContext.getCppModuleMap(),
+                /* addObject= */ true,
+                isCodeCoverageEnabled,
+                // The source action does not generate dwo when it has bitcode
+                // output (since it isn't generating a native object with debug
+                // info). In that case the LtoBackendAction will generate the dwo.
+                CcToolchainProvider.shouldCreatePerObjectDebugInfo(
+                        featureConfiguration, cppConfiguration),
+                bitcodeOutput,
+                additionalBuildVariables);
+      }
     }
-  }
 
-  private CppCompileActionBuilder createCpp20ModuleCompileActionBuilder(
-      CppCompileActionBuilder moduleCompileBuilder,
-      Label sourceLabel,
-      String outputName,
-      CcCompilationOutputs.Builder result,
-      Artifact sourceArtifact,
-      boolean usePic,
-      NestedSetBuilder<Artifact.DerivedArtifact> pcmSetBuilder,
-      ImmutableList.Builder<Pair<Artifact, Artifact>> pcmAndDdiPairListBuilder,
-      List<CppCompileActionBuilder> builderList,
-      Artifact ddiFile,
-      Artifact dotdFile,
-      Artifact modmapFile,
-      Artifact modmapInputFile)
-      throws RuleErrorException, EvalException, InterruptedException {
-    Artifact diagnosticsFile;
-    var outputCategory = ArtifactCategory.CPP_MODULE;
-    if (moduleCompileBuilder.serializedDiagnosticsFilesEnabled()) {
-      String diagnosticsFileName =
-          CppHelper.getDiagnosticsFileName(ccToolchain, outputCategory, outputName);
-      diagnosticsFile =
-          CppHelper.getCompileOutputArtifact(
-              actionConstructionContext, label, diagnosticsFileName, configuration);
-    } else {
-      diagnosticsFile = null;
-    }
-    String pcmFileName =
-        CppHelper.getArtifactNameForCategory(ccToolchain, outputCategory, outputName);
-    PathFragment objectDir =
-        CppHelper.getObjDirectory(label, configuration.isSiblingRepositoryLayout());
-    // the DerivedArtifact type is required when using restart mechanism
-    Artifact.DerivedArtifact pcmFile =
-        actionConstructionContext.getDerivedArtifact(
-            objectDir.getRelative(pcmFileName),
-            configuration.getBinDirectory(label.getRepository()));
-    pcmSetBuilder.add(pcmFile);
-    pcmAndDdiPairListBuilder.add(Pair.of(pcmFile, ddiFile));
-    if (usePic) {
-      result.addPicPcmFile(pcmFile);
-    } else {
-      result.addPcmFile(pcmFile);
-    }
-    moduleCompileBuilder.setOutputs(pcmFile, dotdFile, diagnosticsFile);
-    moduleCompileBuilder.setModmapFile(modmapFile);
-    moduleCompileBuilder.setModmapInputFile(modmapInputFile);
-    moduleCompileBuilder.setActionName(CppActionNames.CPP20_MODULE_COMPILE);
-    PathFragment ccRelativeName = sourceArtifact.getRootRelativePath();
-    var variables =
-        setupCompileBuildVariables(
-            moduleCompileBuilder,
-            sourceLabel,
-            usePic,
-            /* needsFdoBuildVariables= */ ccRelativeName != null,
-            cppModuleMap,
-            /* enableCoverage= */ false,
-            null,
-            false,
-            null,
-            null,
-            /* additionalBuildVariables= */ ImmutableMap.of(
-                CompileBuildVariables.CPP20_MODMAP_FILE.getVariableName(),
-                modmapFile.getExecPathString()));
-    moduleCompileBuilder.setVariables(variables);
-    semantics.finalizeCompileActionBuilder(
-        configuration, featureConfiguration, moduleCompileBuilder);
-    builderList.add(moduleCompileBuilder);
-    createScanDepsAction(variables, sourceArtifact, ddiFile, dotdFile);
-    // after compile module interface file to pcm file
-    // we compile pcm file to object file
-    var moduleCodegenBuilder = initializeCompileAction(pcmFile);
-    moduleCodegenBuilder.addMandatoryInputs(List.of(sourceArtifact));
-    createCompileActionBuilder(
-        moduleCodegenBuilder,
-        sourceLabel,
-        outputName,
-        result,
-        pcmFile,
-        usePic,
-        /* ddiFile= */ null,
-        dotdFile,
-        modmapFile,
-        /* isCpp20Module= */ true);
-    return moduleCodegenBuilder;
-  }
+    for (CppSource source : compilationUnitSources.values()) {
+      Artifact sourceArtifact = source.getSource();
 
-  private void createCompileActionBuilder(
-      CppCompileActionBuilder builder,
-      Label sourceLabel,
-      String outputName,
-      CcCompilationOutputs.Builder result,
-      Artifact sourceArtifact,
-      boolean usePic,
-      Artifact ddiFile,
-      Artifact dotdFile,
-      Artifact modmapFile,
-      boolean isCpp20Module)
-      throws RuleErrorException, EvalException, InterruptedException {
-    if (isCpp20Module) {
-      builder.setActionName(CppActionNames.CPP20_MODULE_CODEGEN);
-    } else {
-      // do nothing
-      // fallback to default action name
-    }
-    boolean enableCoverage = isCodeCoverageEnabled;
-    boolean generateDwo =
-        ccToolchain.shouldCreatePerObjectDebugInfo(featureConfiguration, cppConfiguration);
-    boolean bitcodeOutput =
-        featureConfiguration.isEnabled(CppRuleClasses.THIN_LTO)
-            && CppFileTypes.LTO_SOURCE.matches(sourceArtifact.getFilename());
-    PathFragment ccRelativeName = sourceArtifact.getRootRelativePath();
+      Label sourceLabel = source.getLabel();
+      CppCompileActionBuilder builder = initializeCompileAction(sourceArtifact);
 
-    Artifact outputFile = CppHelper.getCompileOutputArtifact(
-            actionConstructionContext,
-            label,
-            CppHelper.getArtifactNameForCategory(ccToolchain, ArtifactCategory.OBJECT_FILE, outputName),
-            configuration
-    );
-    Artifact diagnosticsFile;
-    if (builder.serializedDiagnosticsFilesEnabled()) {
-      String diagnosticsFileName =
-              CppHelper.getDiagnosticsFileName(ccToolchain, ArtifactCategory.OBJECT_FILE, outputName);
-      diagnosticsFile =
+      builder
+              .addMandatoryInputs(additionalCompilationInputs)
+              .addAdditionalIncludeScanningRoots(additionalIncludeScanningRoots);
+
+      boolean bitcodeOutput =
+              featureConfiguration.isEnabled(CppRuleClasses.THIN_LTO)
+                      && CppFileTypes.LTO_SOURCE.matches(sourceArtifact.getFilename());
+
+      String outputName = outputNameMap.get(sourceArtifact);
+      if (usePic) {
+        outputName =
+                CppHelper.getArtifactNameForCategory(
+                        ccToolchain, ArtifactCategory.PIC_FILE, outputName);
+      }
+      builder.setModuleFiles(allModuleFiles);
+
+      // all -fmodule-file=<module-name>=<path/to/bmi> flags are put in .modmap file
+      var modmapFile =
               CppHelper.getCompileOutputArtifact(
-                      actionConstructionContext, label, diagnosticsFileName, configuration);
-    }
-    else {
-      diagnosticsFile = null;
-    }
-    builder.setOutputs(outputFile, dotdFile, diagnosticsFile);
-    String gcnoFileName =
-        CppHelper.getArtifactNameForCategory(
-            ccToolchain, ArtifactCategory.COVERAGE_DATA_FILE, outputName);
-    Artifact gcnoFile =
-        enableCoverage
-            ? CppHelper.getCompileOutputArtifact(
-                actionConstructionContext, label, gcnoFileName, configuration)
-            : null;
-    Artifact dwoFile = generateDwo && !bitcodeOutput ? getDwoFile(outputFile) : null;
-    Artifact ltoIndexingFile = bitcodeOutput ? getLtoIndexingFile(outputFile) : null;
-    // compile arguments are produced by the same CompileBuildVariables
-    var variables =
-        setupCompileBuildVariables(
-            builder,
-            sourceLabel,
-            /* usePic= */ usePic,
-            /* needsFdoBuildVariables= */ ccRelativeName != null,
-            cppModuleMap,
-            /* enableCoverage= */ false,
-            gcnoFile,
-            generateDwo,
-            dwoFile,
-            ltoIndexingFile,
-            /* additionalBuildVariables= */ modmapFile == null
-                ? ImmutableMap.of()
-                : ImmutableMap.of(
-                    CompileBuildVariables.CPP20_MODMAP_FILE.getVariableName(),
-                    modmapFile.getExecPathString()));
+                      actionConstructionContext,
+                      label,
+                      CppHelper.getArtifactNameForCategory(
+                              ccToolchain, ArtifactCategory.CPP20_MODULES_MODMAP, outputName),
+                      configuration);
+      // all path/to/bmi are put in .modmap.input file,
+      // which is convenient to get all bmi in CppCompileAction
+      var modmapInputFile =
+              CppHelper.getCompileOutputArtifact(
+                      actionConstructionContext,
+                      label,
+                      CppHelper.getArtifactNameForCategory(
+                              ccToolchain, ArtifactCategory.CPP20_MODULES_MODMAP_INPUT, outputName),
+                      configuration);
+      var ddiOutputName = CppHelper.getArtifactNameForCategory(
+              ccToolchain, ArtifactCategory.CPP20_MODULES_DDI, outputName);
+      Artifact ddiFile =
+              CppHelper.getCompileOutputArtifact(
+                      actionConstructionContext,
+                      label,
+                      ddiOutputName,
+                      configuration);
+      createScanDepsAction(source.getLabel(), sourceArtifact, usePic, ddiFile, ddiOutputName);
+      createGenModmapAction(ddiFile, modulesInfoFile, modmapFile, modmapInputFile);
+      builder.setModmapFile(modmapFile);
+      builder.setModmapInputFile(modmapInputFile);
 
-    if (ddiFile != null) {
-      createScanDepsAction(variables, sourceArtifact, ddiFile, dotdFile);
-    }
-    builder.setVariables(variables);
-    builder.setGcnoFile(gcnoFile);
-    builder.setDwoFile(dwoFile);
-    builder.setLtoIndexingFile(ltoIndexingFile);
-
-    result.addTemps(
-        createTempsActions(
-            sourceArtifact, sourceLabel, outputName, builder, usePic, ccRelativeName));
-    if (usePic) {
-      result.addPicObjectFile(outputFile);
-      if (dwoFile != null) {
-        result.addPicDwoFile(dwoFile);
+      ImmutableList.Builder<Artifact> directOutputs = new ImmutableList.Builder<>();
+      PathFragment ccRelativeName = sourceArtifact.getRootRelativePath();
+      // TODO(plf): Continue removing CLIF logic from C++. Follow up changes would include
+      // refactoring CppSource.Type and ArtifactCategory to be classes instead of enums
+      // that could be instantiated with arbitrary values.
+      ArtifactCategory outputCategory =
+              source.getType() == CppSource.Type.CLIF_INPUT_PROTO
+                      ? ArtifactCategory.CLIF_OUTPUT_PROTO
+                      : ArtifactCategory.OBJECT_FILE;
+      builder.setOutputs(
+              actionConstructionContext, ruleErrorConsumer, label, outputCategory, outputName);
+      ImmutableMap<String, String> additionalBuildVariables = ImmutableMap.<String, String>builder()
+              .put(CompileBuildVariables.CPP20_MODMAP_FILE.getVariableName(), modmapFile.getExecPathString())
+              .build();
+      if (usePic) {
+        createSourcePicAction(
+                directOutputs,
+                ccRelativeName,
+                sourceLabel,
+                outputName,
+                result,
+                sourceArtifact,
+                builder,
+                outputCategory,
+                ccCompilationContext.getCppModuleMap(),
+                /* addObject= */ true,
+                isCodeCoverageEnabled,
+                // The source action does not generate dwo when it has bitcode
+                // output (since it isn't generating a native object with debug
+                // info). In that case the LtoBackendAction will generate the dwo.
+                CcToolchainProvider.shouldCreatePerObjectDebugInfo(
+                        featureConfiguration, cppConfiguration),
+                bitcodeOutput,
+                additionalBuildVariables);
       }
-      if (gcnoFile != null) {
-        result.addPicGcnoFile(gcnoFile);
-      }
-    } else {
-      result.addObjectFile(outputFile);
-      if (dwoFile != null) {
-        result.addDwoFile(dwoFile);
-      }
-      if (gcnoFile != null) {
-        result.addGcnoFile(gcnoFile);
+      else {
+        createSourceNoPicAction(
+                directOutputs,
+                ccRelativeName,
+                sourceLabel,
+                outputName,
+                result,
+                sourceArtifact,
+                builder,
+                outputCategory,
+                ccCompilationContext.getCppModuleMap(),
+                /* addObject= */ true,
+                isCodeCoverageEnabled,
+                // The source action does not generate dwo when it has bitcode
+                // output (since it isn't generating a native object with debug
+                // info). In that case the LtoBackendAction will generate the dwo.
+                CcToolchainProvider.shouldCreatePerObjectDebugInfo(
+                        featureConfiguration, cppConfiguration),
+                bitcodeOutput,
+                additionalBuildVariables);
       }
     }
   }
@@ -1942,19 +1851,110 @@ public final class CcCompilationHelper {
   }
 
   private void createScanDepsAction(
-      CcToolchainVariables variables, Artifact sourceArtifact, Artifact ddiFile, Artifact dotdFile)
-      throws RuleErrorException, EvalException {
+      Label sourceLabel,
+      Artifact sourceArtifact,
+      boolean usePic,
+      Artifact ddiFile,
+      String outputName)
+      throws RuleErrorException, EvalException, InterruptedException {
     var scanDepsBuilder = initializeCompileAction(sourceArtifact);
     scanDepsBuilder.setActionName(CppActionNames.CPP20_DEPS_SCANNING);
+    Artifact dotdFile;
+    if (scanDepsBuilder.dotdFilesEnabled()
+            && scanDepsBuilder.useDotdFile(sourceArtifact)) {
+      String dotdFileName = CppHelper.getArtifactNameForCategory(
+              ccToolchain, ArtifactCategory.INCLUDED_FILE_LIST, outputName);
+      dotdFile =
+              CppHelper.getCompileOutputArtifact(
+                      actionConstructionContext, label, dotdFileName, configuration);
+    } else {
+      dotdFile = null;
+    }
     scanDepsBuilder.setOutputs(ddiFile, dotdFile, null);
-    // only c++20-deps-scanning add .d file
-    var buildVariables = CcToolchainVariables.builder(variables)
-            .addStringVariable(CompileBuildVariables.DEPENDENCY_FILE.getVariableName(), dotdFile.getExecPathString());
-    scanDepsBuilder.setVariables(buildVariables.build());
+    var variables =
+            setupCompileBuildVariables(
+                    scanDepsBuilder,
+                    sourceLabel,
+                    usePic,
+                    /* needsFdoBuildVariables= */ false,
+                    cppModuleMap,
+                    /* enableCoverage= */ false,
+                    null,
+                    false,
+                    null,
+                    null,
+                    /* additionalBuildVariables= */ ImmutableMap.of());
+
+    scanDepsBuilder.setVariables(variables);
     semantics.finalizeCompileActionBuilder(
         configuration, featureConfiguration, scanDepsBuilder);
     var scanDepsAction = scanDepsBuilder.buildOrThrowRuleError(ruleErrorConsumer);
     actionConstructionContext.registerAction(scanDepsAction);
+  }
+  private void createGenModmapAction(
+          Artifact ddiFile,
+          Artifact modulesInfoFile,
+          Artifact modmapFile,
+          Artifact modmapInputFile
+  ) throws EvalException {
+    var genModmapTool = ccToolchain.getGenModmap();
+    Preconditions.checkNotNull(genModmapTool);
+    var genModmapAction = new SpawnAction(
+            actionConstructionContext.getActionOwner(),
+            NestedSetBuilder.<Artifact>stableOrder().add(genModmapTool).build(),
+            NestedSetBuilder.<Artifact>stableOrder().add(genModmapTool).add(ddiFile).add(modulesInfoFile).build(),
+            ImmutableList.of(modmapFile, modmapInputFile),
+            AbstractAction.DEFAULT_RESOURCE_SET,
+            CommandLines.builder()
+                    .addSingleArgument(genModmapTool.getExecPathString())
+                    .addSingleArgument(ddiFile.getExecPathString())
+                    .addSingleArgument(modulesInfoFile.getExecPathString())
+                    .addSingleArgument(modmapFile.getExecPathString())
+                    .addSingleArgument(ccToolchain.getCompiler())
+                    .build(),
+            ActionEnvironment.EMPTY,
+            ImmutableMap.of(),
+            "Generating modmap with " + ddiFile.getFilename(),
+            "GenModmap",
+            PathMappers.getOutputPathsMode(configuration)
+    );
+    actionConstructionContext.registerAction(genModmapAction);
+  }
+
+  private void createAggDdiAction(
+          NestedSet<Artifact> ddiFiles,
+          ImmutableList<CommandLine> commandLines,
+          NestedSet<Artifact> modulesInfoFiles,
+          Artifact modulesInfoFile) throws EvalException {
+    var aggDdiTool = ccToolchain.getAggDdi();
+    Preconditions.checkNotNull(aggDdiTool);
+    CommandLines.Builder builder = CommandLines.builder();
+    builder.addSingleArgument(aggDdiTool.getExecPathString());
+    for (CommandLine commandLine : commandLines) {
+      builder.addCommandLine(commandLine);
+    }
+    for (Artifact depModulesInfoFile : modulesInfoFiles.toList()) {
+      builder.addCommandLine(CommandLine.of(ImmutableList.of("-m", depModulesInfoFile.getExecPathString())));
+    }
+    builder.addCommandLine(CommandLine.of(ImmutableList.of("-o", modulesInfoFile.getExecPathString())));
+    var aggDdiAction = new SpawnAction(
+            actionConstructionContext.getActionOwner(),
+            NestedSetBuilder.<Artifact>stableOrder().add(aggDdiTool).build(),
+            NestedSetBuilder.<Artifact>stableOrder()
+                    .add(aggDdiTool)
+                    .addTransitive(ddiFiles)
+                    .addTransitive(modulesInfoFiles)
+                    .build(),
+            ImmutableList.of(modulesInfoFile),
+            AbstractAction.DEFAULT_RESOURCE_SET,
+            builder.build(),
+            ActionEnvironment.EMPTY,
+            ImmutableMap.of(),
+            "Generating Cpp20ModulesInfo " + modulesInfoFile.getFilename(),
+            "AggDdi",
+            PathMappers.getOutputPathsMode(configuration)
+            );
+    actionConstructionContext.registerAction(aggDdiAction);
   }
 
   private ImmutableList<Artifact> createModuleAction(
@@ -1981,7 +1981,179 @@ public final class CcCompilationHelper {
         /* generateDwo= */ false,
         /* bitcodeOutput= */ false);
   }
+  @CanIgnoreReturnValue
+  private void createSourcePicAction(
+          ImmutableList.Builder<Artifact> directOutputs,
+          PathFragment ccRelativeName,
+          Label sourceLabel,
+          String outputName,
+          CcCompilationOutputs.Builder result,
+          Artifact sourceArtifact,
+          CppCompileActionBuilder picBuilder,
+          ArtifactCategory outputCategory,
+          CppModuleMap cppModuleMap,
+          boolean addObject,
+          boolean enableCoverage,
+          boolean generateDwo,
+          boolean bitcodeOutput,
+          ImmutableMap<String, String> additionalBuildVariables)
+          throws RuleErrorException, EvalException, InterruptedException {
 
+    String picOutputBase =
+            CppHelper.getArtifactNameForCategory(ccToolchain, ArtifactCategory.PIC_FILE, outputName);
+    String gcnoFileName =
+            CppHelper.getArtifactNameForCategory(
+                    ccToolchain, ArtifactCategory.COVERAGE_DATA_FILE, picOutputBase);
+    Artifact gcnoFile =
+            enableCoverage && !cppConfiguration.useLLVMCoverageMapFormat()
+                    ? CppHelper.getCompileOutputArtifact(
+                    actionConstructionContext, label, gcnoFileName, configuration)
+                    : null;
+    Artifact dwoFile =
+            generateDwo && !bitcodeOutput ? getDwoFile(picBuilder.getOutputFile()) : null;
+    Artifact ltoIndexingFile =
+            bitcodeOutput ? getLtoIndexingFile(picBuilder.getOutputFile()) : null;
+
+    picBuilder.setVariables(
+            setupCompileBuildVariables(
+                    picBuilder,
+                    sourceLabel,
+                    /* usePic= */ true,
+                    /* needsFdoBuildVariables= */ ccRelativeName != null && addObject,
+                    cppModuleMap,
+                    enableCoverage,
+                    gcnoFile,
+                    generateDwo,
+                    dwoFile,
+                    ltoIndexingFile,
+                    additionalBuildVariables));
+
+    result.addTemps(
+            createTempsActions(
+                    sourceArtifact,
+                    sourceLabel,
+                    outputName,
+                    picBuilder,
+                    /* usePic= */ true,
+                    ccRelativeName));
+
+    picBuilder.setGcnoFile(gcnoFile);
+    picBuilder.setDwoFile(dwoFile);
+    picBuilder.setLtoIndexingFile(ltoIndexingFile);
+
+    semantics.finalizeCompileActionBuilder(configuration, featureConfiguration, picBuilder);
+    CppCompileAction picAction = picBuilder.buildOrThrowRuleError(ruleErrorConsumer);
+    actionConstructionContext.registerAction(picAction);
+    directOutputs.add(picAction.getPrimaryOutput());
+    if (addObject) {
+      result.addPicObjectFile(picAction.getPrimaryOutput());
+
+      if (bitcodeOutput) {
+        result.addLtoBitcodeFile(
+                picAction.getPrimaryOutput(), ltoIndexingFile, getCopts(sourceArtifact, sourceLabel));
+      }
+    }
+    if (dwoFile != null) {
+      // Exec configuration targets don't produce .dwo files.
+      result.addPicDwoFile(dwoFile);
+    }
+    if (gcnoFile != null) {
+      result.addPicGcnoFile(gcnoFile);
+    }
+    if (outputCategory == ArtifactCategory.CPP_MODULE) {
+      result.addModuleFile(picAction.getPrimaryOutput());
+    }
+  }
+  @CanIgnoreReturnValue
+  private void createSourceNoPicAction(
+          ImmutableList.Builder<Artifact> directOutputs,
+          PathFragment ccRelativeName,
+          Label sourceLabel,
+          String outputName,
+          CcCompilationOutputs.Builder result,
+          Artifact sourceArtifact,
+          CppCompileActionBuilder builder,
+          ArtifactCategory outputCategory,
+          CppModuleMap cppModuleMap,
+          boolean addObject,
+          boolean enableCoverage,
+          boolean generateDwo,
+          boolean bitcodeOutput,
+          ImmutableMap<String, String> additionalBuildVariables)
+          throws RuleErrorException, EvalException, InterruptedException {
+
+    Artifact noPicOutputFile =
+            CppHelper.getCompileOutputArtifact(
+                    actionConstructionContext,
+                    label,
+                    CppHelper.getArtifactNameForCategory(ccToolchain, outputCategory, outputName),
+                    configuration);
+    builder.setOutputs(
+            actionConstructionContext, ruleErrorConsumer, label, outputCategory, outputName);
+    String gcnoFileName =
+            CppHelper.getArtifactNameForCategory(
+                    ccToolchain, ArtifactCategory.COVERAGE_DATA_FILE, outputName);
+
+    // Create no-PIC compile actions
+    Artifact gcnoFile =
+            isCodeCoverageEnabled && !cppConfiguration.useLLVMCoverageMapFormat()
+                    ? CppHelper.getCompileOutputArtifact(
+                    actionConstructionContext, label, gcnoFileName, configuration)
+                    : null;
+
+    Artifact noPicDwoFile = generateDwo && !bitcodeOutput ? getDwoFile(noPicOutputFile) : null;
+    Artifact ltoIndexingFile = bitcodeOutput ? getLtoIndexingFile(builder.getOutputFile()) : null;
+
+    builder.setVariables(
+            setupCompileBuildVariables(
+                    builder,
+                    sourceLabel,
+                    /* usePic= */ false,
+                    /* needsFdoBuildVariables= */ ccRelativeName != null,
+                    cppModuleMap,
+                    isCodeCoverageEnabled,
+                    gcnoFile,
+                    generateDwo,
+                    noPicDwoFile,
+                    ltoIndexingFile,
+                    additionalBuildVariables));
+
+    result.addTemps(
+            createTempsActions(
+                    sourceArtifact,
+                    sourceLabel,
+                    outputName,
+                    builder,
+                    /* usePic= */ false,
+                    ccRelativeName));
+
+    builder.setGcnoFile(gcnoFile);
+    builder.setDwoFile(noPicDwoFile);
+    builder.setLtoIndexingFile(ltoIndexingFile);
+
+    semantics.finalizeCompileActionBuilder(configuration, featureConfiguration, builder);
+    CppCompileAction compileAction = builder.buildOrThrowRuleError(ruleErrorConsumer);
+    actionConstructionContext.registerAction(compileAction);
+    Artifact objectFile = compileAction.getPrimaryOutput();
+    directOutputs.add(objectFile);
+    if (addObject) {
+      result.addObjectFile(objectFile);
+      if (bitcodeOutput) {
+        result.addLtoBitcodeFile(
+                objectFile, ltoIndexingFile, getCopts(sourceArtifact, sourceLabel));
+      }
+    }
+    if (noPicDwoFile != null) {
+      // Exec configuration targets don't produce .dwo files.
+      result.addDwoFile(noPicDwoFile);
+    }
+    if (gcnoFile != null) {
+      result.addGcnoFile(gcnoFile);
+    }
+    if (outputCategory == ArtifactCategory.CPP_MODULE) {
+      result.addModuleFile(compileAction.getPrimaryOutput());
+    }
+  }
   @CanIgnoreReturnValue
   private ImmutableList<Artifact> createSourceAction(
       Label sourceLabel,
@@ -2003,144 +2175,43 @@ public final class CcCompilationHelper {
     // generate .pic.o, .pic.d, .pic.gcno instead of .o, .d, .gcno.)
     if (generatePicAction) {
       String picOutputBase =
-          CppHelper.getArtifactNameForCategory(ccToolchain, ArtifactCategory.PIC_FILE, outputName);
+              CppHelper.getArtifactNameForCategory(ccToolchain, ArtifactCategory.PIC_FILE, outputName);
       CppCompileActionBuilder picBuilder = copyAsPicBuilder(builder, picOutputBase, outputCategory);
-      String gcnoFileName =
-          CppHelper.getArtifactNameForCategory(
-              ccToolchain, ArtifactCategory.COVERAGE_DATA_FILE, picOutputBase);
-      Artifact gcnoFile =
-          enableCoverage && !cppConfiguration.useLLVMCoverageMapFormat()
-              ? CppHelper.getCompileOutputArtifact(
-                  actionConstructionContext, label, gcnoFileName, configuration)
-              : null;
-      Artifact dwoFile =
-          generateDwo && !bitcodeOutput ? getDwoFile(picBuilder.getOutputFile()) : null;
-      Artifact ltoIndexingFile =
-          bitcodeOutput ? getLtoIndexingFile(picBuilder.getOutputFile()) : null;
-
-      picBuilder.setVariables(
-          setupCompileBuildVariables(
+      createSourcePicAction(
+        directOutputs,
+        ccRelativeName,
+        sourceLabel,
+        outputName,
+        result,
+        sourceArtifact,
               picBuilder,
-              sourceLabel,
-              /* usePic= */ true,
-              /* needsFdoBuildVariables= */ ccRelativeName != null && addObject,
-              cppModuleMap,
-              enableCoverage,
-              gcnoFile,
-              generateDwo,
-              dwoFile,
-              ltoIndexingFile,
-              /* additionalBuildVariables= */ ImmutableMap.of()));
-
-      result.addTemps(
-          createTempsActions(
-              sourceArtifact,
-              sourceLabel,
-              outputName,
-              picBuilder,
-              /* usePic= */ true,
-              ccRelativeName));
-
-      picBuilder.setGcnoFile(gcnoFile);
-      picBuilder.setDwoFile(dwoFile);
-      picBuilder.setLtoIndexingFile(ltoIndexingFile);
-
-      semantics.finalizeCompileActionBuilder(configuration, featureConfiguration, picBuilder);
-      CppCompileAction picAction = picBuilder.buildOrThrowRuleError(ruleErrorConsumer);
-      actionConstructionContext.registerAction(picAction);
-      directOutputs.add(picAction.getPrimaryOutput());
-      if (addObject) {
-        result.addPicObjectFile(picAction.getPrimaryOutput());
-
-        if (bitcodeOutput) {
-          result.addLtoBitcodeFile(
-              picAction.getPrimaryOutput(), ltoIndexingFile, getCopts(sourceArtifact, sourceLabel));
-        }
-      }
-      if (dwoFile != null) {
-        // Exec configuration targets don't produce .dwo files.
-        result.addPicDwoFile(dwoFile);
-      }
-      if (gcnoFile != null) {
-        result.addPicGcnoFile(gcnoFile);
-      }
-      if (outputCategory == ArtifactCategory.CPP_MODULE) {
-        result.addModuleFile(picAction.getPrimaryOutput());
-      }
+        outputCategory,
+        cppModuleMap,
+       addObject,
+       enableCoverage,
+       generateDwo,
+       bitcodeOutput,
+              ImmutableMap.of()
+      );
     }
 
     if (generateNoPicAction) {
-      Artifact noPicOutputFile =
-          CppHelper.getCompileOutputArtifact(
-              actionConstructionContext,
-              label,
-              CppHelper.getArtifactNameForCategory(ccToolchain, outputCategory, outputName),
-              configuration);
-      builder.setOutputs(
-          actionConstructionContext, ruleErrorConsumer, label, outputCategory, outputName);
-      String gcnoFileName =
-          CppHelper.getArtifactNameForCategory(
-              ccToolchain, ArtifactCategory.COVERAGE_DATA_FILE, outputName);
-
-      // Create no-PIC compile actions
-      Artifact gcnoFile =
-          isCodeCoverageEnabled && !cppConfiguration.useLLVMCoverageMapFormat()
-              ? CppHelper.getCompileOutputArtifact(
-                  actionConstructionContext, label, gcnoFileName, configuration)
-              : null;
-
-      Artifact noPicDwoFile = generateDwo && !bitcodeOutput ? getDwoFile(noPicOutputFile) : null;
-      Artifact ltoIndexingFile = bitcodeOutput ? getLtoIndexingFile(builder.getOutputFile()) : null;
-
-      builder.setVariables(
-          setupCompileBuildVariables(
-              builder,
-              sourceLabel,
-              /* usePic= */ false,
-              /* needsFdoBuildVariables= */ ccRelativeName != null,
-              cppModuleMap,
-              isCodeCoverageEnabled,
-              gcnoFile,
-              generateDwo,
-              noPicDwoFile,
-              ltoIndexingFile,
-              /* additionalBuildVariables= */ ImmutableMap.of()));
-
-      result.addTemps(
-          createTempsActions(
-              sourceArtifact,
+      createSourceNoPicAction(
+              directOutputs,
+              ccRelativeName,
               sourceLabel,
               outputName,
+              result,
+              sourceArtifact,
               builder,
-              /* usePic= */ false,
-              ccRelativeName));
-
-      builder.setGcnoFile(gcnoFile);
-      builder.setDwoFile(noPicDwoFile);
-      builder.setLtoIndexingFile(ltoIndexingFile);
-
-      semantics.finalizeCompileActionBuilder(configuration, featureConfiguration, builder);
-      CppCompileAction compileAction = builder.buildOrThrowRuleError(ruleErrorConsumer);
-      actionConstructionContext.registerAction(compileAction);
-      Artifact objectFile = compileAction.getPrimaryOutput();
-      directOutputs.add(objectFile);
-      if (addObject) {
-        result.addObjectFile(objectFile);
-        if (bitcodeOutput) {
-          result.addLtoBitcodeFile(
-              objectFile, ltoIndexingFile, getCopts(sourceArtifact, sourceLabel));
-        }
-      }
-      if (noPicDwoFile != null) {
-        // Exec configuration targets don't produce .dwo files.
-        result.addDwoFile(noPicDwoFile);
-      }
-      if (gcnoFile != null) {
-        result.addGcnoFile(gcnoFile);
-      }
-      if (outputCategory == ArtifactCategory.CPP_MODULE) {
-        result.addModuleFile(compileAction.getPrimaryOutput());
-      }
+              outputCategory,
+              cppModuleMap,
+              addObject,
+              enableCoverage,
+              generateDwo,
+              bitcodeOutput,
+              ImmutableMap.of()
+      );
     }
     return directOutputs.build();
   }

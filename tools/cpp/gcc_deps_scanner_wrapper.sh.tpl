@@ -8,5 +8,5 @@ set -eu
 %{env}
 
 # Call the C++ compiler
-echo "gcc not supported now"
-exit 1
+
+%{cc} -E -x c++ -fmodules-ts -fdeps-file=out.tmp -fdeps-format=p1689r5 "$@" >out.tmp && mv out.tmp $DEPS_SCANNER_OUTPUT_FILE

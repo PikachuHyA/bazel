@@ -1,0 +1,10 @@
+package(default_visibility = ["//visibility:public"])
+
+filegroup(
+    name = "agg-ddi-bin",
+    srcs = ["agg-ddi"],
+)
+filegroup(
+    name = "gen-modmap-bin",
+    srcs = ["gen-modmap"],
+)

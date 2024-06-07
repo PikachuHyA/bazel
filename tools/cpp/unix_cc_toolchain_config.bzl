@@ -259,6 +259,62 @@ def _impl(ctx):
         )
         action_configs.append(objcopy_action)
 
+    deps_scanner = ctx.attr.tool_paths.get("deps-scanner")
+    cc = ctx.attr.tool_paths.get("gcc")
+    compile_implies = [
+        # keep same with c++-compile
+        "legacy_compile_flags",
+        "user_compile_flags",
+        "sysroot",
+        "unfiltered_compile_flags",
+        "compiler_input_flags",
+        "compiler_output_flags",
+    ]
+    cpp20_scan_deps = action_config(
+        action_name = ACTION_NAMES.cpp20_deps_scanning,
+        tools = [
+            tool(
+                path = deps_scanner,
+            ),
+        ],
+        implies = compile_implies
+    )
+    action_configs.append(cpp20_scan_deps)
+
+    cpp20_module_compile = action_config(
+        action_name = ACTION_NAMES.cpp20_module_compile,
+        tools = [
+            tool(
+                path = cc,
+            ),
+        ],
+        flag_sets = [
+            flag_set(
+                flag_groups = [
+                    flag_group(
+                        flags = [
+                            "-x",
+                            "c++-module" if ctx.attr.compiler == "clang" else "c++"
+                        ],
+                    ),
+                ],
+            ),
+        ],
+        implies = compile_implies
+    )
+    action_configs.append(cpp20_module_compile)
+
+    cpp20_module_codegen = action_config(
+        action_name = ACTION_NAMES.cpp20_module_codegen,
+        tools = [
+            tool(
+                path = cc,
+            ),
+        ],
+        implies = compile_implies
+    )
+    action_configs.append(cpp20_module_codegen)
+
     supports_pic_feature = feature(
         name = "supports_pic",
         enabled = True,
@@ -1478,10 +1534,31 @@ def _impl(ctx):
                 ],
                 flag_groups = [
                     flag_group(
-                        flags = ["@%{cpp20_modmap_file}"],
+                        flags = ["@%{cpp20_modmap_file}" if ctx.attr.compiler == "clang" else "-fmodule-mapper=%{cpp20_modmap_file}"],
                         expand_if_available = "cpp20_modmap_file",
                     ),
                 ],
+            ),
+        ],
+        enabled = True,
+    )
+    if ctx.attr.compiler == "clang":
+        flag_groups = [
+                    flag_group(
+                        flags = ["-fmodule-output=%{cpp20_module_output_file}"],
+                        expand_if_available = "cpp20_module_output_file",
+                    ),
+                ]
+    else:
+        flag_groups = []
+    cpp20_module_compile_flags_feature = feature(
+        name = "cpp20_module_compile_flags",
+        flag_sets = [
+            flag_set(
+                actions = [
+                    ACTION_NAMES.cpp20_module_compile,
+                ],
+                flag_groups = flag_groups,
             ),
         ],
         enabled = True,
@@ -1494,6 +1571,7 @@ def _impl(ctx):
         features = [
             cpp20_modules_feature,
             cpp20_modmap_file_feature,
+            cpp20_module_compile_flags_feature,
             dependency_file_feature,
             serialized_diagnostics_file_feature,
             random_seed_feature,
@@ -1562,6 +1640,9 @@ def _impl(ctx):
         ]
         features = [
             cpp20_modules_feature,
+            cpp20_modmap_file_feature,
+            cpp20_module_compile_flags_feature,
+            dependency_file_feature,
             macos_minimum_os_feature,
             macos_default_link_flags_feature,
             libtool_feature,

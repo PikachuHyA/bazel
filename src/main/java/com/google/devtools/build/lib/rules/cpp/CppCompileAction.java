@@ -355,16 +355,14 @@ public class CppCompileAction extends AbstractAction implements IncludeScannable
     }
     outputs.addAll(additionalOutputs);
     if (dotdFile != null) {
-      if (featureConfiguration.isEnabled(CppRuleClasses.CPP20_MODULE)) {
+      if (featureConfiguration.isEnabled(CppRuleClasses.CPP20_MODULES)) {
         switch (actionName) {
-          // if cpp20_module enabled, only c++20-deps-scanning will produce .d file
-          // other actions will reuse the .d file from c++20-deps-scanning
-          case CppActionNames.CPP_COMPILE:
-          case CppActionNames.CPP20_MODULE_COMPILE:
           case CppActionNames.CPP20_MODULE_CODEGEN:
           {
             break;
           }
+          case CppActionNames.CPP_COMPILE:
+          case CppActionNames.CPP20_MODULE_COMPILE:
           case CppActionNames.CPP20_DEPS_SCANNING:
           // other source files. e.g. c
           default: {
@@ -476,7 +474,7 @@ public class CppCompileAction extends AbstractAction implements IncludeScannable
 
   @Override
   public boolean discoversInputs() {
-    return Cpp20ModuleHelper.isCpp20ModuleCompilationAction(actionName) ||
+    return isCpp20ModuleCompilationAction(actionName) ||
             shouldScanIncludes || getDotdFile() != null || shouldParseShowIncludes();
   }
 
@@ -544,7 +542,7 @@ public class CppCompileAction extends AbstractAction implements IncludeScannable
   @Override
   public NestedSet<Artifact> discoverInputs(ActionExecutionContext actionExecutionContext)
       throws ActionExecutionException, InterruptedException {
-    if (!Cpp20ModuleHelper.isCpp20ModuleCompilationAction(actionName)) {
+    if (!isCpp20ModuleCompilationAction(actionName)) {
       Preconditions.checkArgument(!sourceFile.isFileType(CppFileTypes.CPP_MODULE));
     }
 
@@ -653,7 +651,7 @@ public class CppCompileAction extends AbstractAction implements IncludeScannable
     additionalInputs =
         NestedSetBuilder.fromNestedSet(additionalInputs).addTransitive(discoveredModules).build();
     if (getPrimaryOutput().isFileType(CppFileTypes.CPP_MODULE)
-      && !Cpp20ModuleHelper.isCpp20ModuleCompilationAction(actionName)) {
+      && !isCpp20ModuleCompilationAction(actionName)) {
       this.discoveredModules = discoveredModules;
     }
     usedModules = null;
@@ -1218,7 +1216,7 @@ public class CppCompileAction extends AbstractAction implements IncludeScannable
   public synchronized void updateInputs(NestedSet<Artifact> inputs) {
     super.updateInputs(inputs);
     if (getPrimaryOutput().isFileType(CppFileTypes.CPP_MODULE)
-    && !Cpp20ModuleHelper.isCpp20ModuleCompilationAction(actionName)) {
+    && !isCpp20ModuleCompilationAction(actionName)) {
       discoveredModules =
           NestedSetBuilder.wrap(
               Order.STABLE_ORDER,
@@ -1560,14 +1558,14 @@ public class CppCompileAction extends AbstractAction implements IncludeScannable
   private Set<DerivedArtifact> computeUsedCpp20Modules(ActionExecutionContext actionExecutionContext)
           throws ActionExecutionException, InterruptedException {
     // if cpp20_module not enable, skip
-    if (!featureConfiguration.isEnabled(CppRuleClasses.CPP20_MODULE)) {
+    if (!featureConfiguration.isEnabled(CppRuleClasses.CPP20_MODULES)) {
       return Set.of();
     }
     // c++20-deps-scanning use source file and header files only
     if (Objects.equals(CppActionNames.CPP20_DEPS_SCANNING, actionName)) {
       return Set.of();
     }
-    if (!Cpp20ModuleHelper.isCpp20ModuleCompilationAction(actionName)
+    if (!isCpp20ModuleCompilationAction(actionName)
             && !CppFileTypes.CPP_SOURCE.matches(sourceFile.getExecPath())) {
       return Set.of();
     }
@@ -1983,5 +1981,10 @@ public class CppCompileAction extends AbstractAction implements IncludeScannable
         .setMessage(message)
         .setCppCompile(CppCompile.newBuilder().setCode(detailedCode))
         .build();
+  }
+
+  public static boolean isCpp20ModuleCompilationAction(String actionName) {
+    return CppActionNames.CPP20_MODULE_COMPILE.equals(actionName)
+            || CppActionNames.CPP20_MODULE_CODEGEN.equals(actionName);
   }
 }

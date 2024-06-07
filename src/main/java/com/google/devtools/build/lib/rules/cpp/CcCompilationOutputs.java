@@ -47,12 +47,12 @@ public class CcCompilationOutputs implements CcCompilationOutputsApi<Artifact> {
   /**
    * All .pcm files built by the target.
    */
-  private final NestedSet<Artifact.DerivedArtifact> pcmFiles;
+  private final NestedSet<Artifact.DerivedArtifact> cpp20ModuleFiles;
 
   /**
    * All .pic.pcm files built by the target.
    */
-  private final NestedSet<Artifact.DerivedArtifact> picPcmFiles;
+  private final NestedSet<Artifact.DerivedArtifact> picCpp20ModuleFiles;
 
   private final ImmutableList<Artifact> modulesInfoFiles;
   private final ImmutableList<Artifact> picModulesInfoFiles;
@@ -94,8 +94,8 @@ public class CcCompilationOutputs implements CcCompilationOutputsApi<Artifact> {
   private CcCompilationOutputs(
       ImmutableList<Artifact> objectFiles,
       ImmutableList<Artifact> picObjectFiles,
-      NestedSet<Artifact.DerivedArtifact> pcmFiles,
-      NestedSet<Artifact.DerivedArtifact> picPcmFiles,
+      NestedSet<Artifact.DerivedArtifact> cpp20ModuleFiles,
+      NestedSet<Artifact.DerivedArtifact> picCpp20ModuleFiles,
       ImmutableList<Artifact> modulesInfoFiles,
       ImmutableList<Artifact> picModulesInfoFiles,
       LtoCompilationContext ltoCompilationContext,
@@ -108,8 +108,8 @@ public class CcCompilationOutputs implements CcCompilationOutputsApi<Artifact> {
       ImmutableList<Artifact> moduleFiles) {
     this.objectFiles = objectFiles;
     this.picObjectFiles = picObjectFiles;
-    this.pcmFiles = pcmFiles;
-    this.picPcmFiles = picPcmFiles;
+    this.cpp20ModuleFiles = cpp20ModuleFiles;
+    this.picCpp20ModuleFiles = picCpp20ModuleFiles;
     this.modulesInfoFiles = modulesInfoFiles;
     this.picModulesInfoFiles = picModulesInfoFiles;
     this.ltoCompilationContext = ltoCompilationContext;
@@ -137,7 +137,7 @@ public class CcCompilationOutputs implements CcCompilationOutputsApi<Artifact> {
    * @param usePic whether to return .pic.pcm files
    */
   public NestedSet<Artifact.DerivedArtifact> getPcmFiles(boolean usePic) {
-    return usePic ? picPcmFiles : pcmFiles;
+    return usePic ? picCpp20ModuleFiles : cpp20ModuleFiles;
   }
 
   public ImmutableList<Artifact> getModulesInfoFiles(boolean usePic) {
@@ -277,8 +277,8 @@ public class CcCompilationOutputs implements CcCompilationOutputsApi<Artifact> {
   public static final class Builder {
     private final Set<Artifact> objectFiles = new LinkedHashSet<>();
     private final Set<Artifact> picObjectFiles = new LinkedHashSet<>();
-    private final NestedSetBuilder<Artifact.DerivedArtifact> pcmFiles = NestedSetBuilder.stableOrder();
-    private final NestedSetBuilder<Artifact.DerivedArtifact> picPcmFiles = NestedSetBuilder.stableOrder();
+    private final NestedSetBuilder<Artifact.DerivedArtifact> cpp20ModuleFiles = NestedSetBuilder.stableOrder();
+    private final NestedSetBuilder<Artifact.DerivedArtifact> picCpp20ModuleFiles = NestedSetBuilder.stableOrder();
     private final Set<Artifact> modulesInfoFiles = new LinkedHashSet<>();
     private final Set<Artifact> picModulesInfoFiles = new LinkedHashSet<>();
     private final LtoCompilationContext.Builder ltoCompilationContext =
@@ -299,8 +299,8 @@ public class CcCompilationOutputs implements CcCompilationOutputsApi<Artifact> {
       return new CcCompilationOutputs(
           ImmutableList.copyOf(objectFiles),
           ImmutableList.copyOf(picObjectFiles),
-          pcmFiles.build(),
-          picPcmFiles.build(),
+          cpp20ModuleFiles.build(),
+          picCpp20ModuleFiles.build(),
           ImmutableList.copyOf(modulesInfoFiles),
           ImmutableList.copyOf(picModulesInfoFiles),
           ltoCompilationContext.build(),
@@ -317,8 +317,8 @@ public class CcCompilationOutputs implements CcCompilationOutputsApi<Artifact> {
     public Builder merge(CcCompilationOutputs outputs) {
       this.objectFiles.addAll(outputs.objectFiles);
       this.picObjectFiles.addAll(outputs.picObjectFiles);
-      this.pcmFiles.addTransitive(outputs.pcmFiles);
-      this.picPcmFiles.addTransitive(outputs.picPcmFiles);
+      this.cpp20ModuleFiles.addTransitive(outputs.cpp20ModuleFiles);
+      this.picCpp20ModuleFiles.addTransitive(outputs.picCpp20ModuleFiles);
       this.modulesInfoFiles.addAll(outputs.modulesInfoFiles);
       this.picModulesInfoFiles.addAll(outputs.picModulesInfoFiles);
       this.dwoFiles.addAll(outputs.dwoFiles);
@@ -345,8 +345,8 @@ public class CcCompilationOutputs implements CcCompilationOutputsApi<Artifact> {
 
     /** Adds a pcm file. */
     @CanIgnoreReturnValue
-    public Builder addPcmFile(Artifact.DerivedArtifact artifact) {
-      pcmFiles.add(artifact);
+    public Builder addCpp20ModuleFile(Artifact.DerivedArtifact artifact) {
+      cpp20ModuleFiles.add(artifact);
       return this;
     }
 
@@ -376,8 +376,8 @@ public class CcCompilationOutputs implements CcCompilationOutputsApi<Artifact> {
 
     /** Adds a pic pcm file. */
     @CanIgnoreReturnValue
-    public Builder addPicPcmFile(Artifact.DerivedArtifact artifact) {
-      picPcmFiles.add(artifact);
+    public Builder addPicCpp20ModuleFile(Artifact.DerivedArtifact artifact) {
+      picCpp20ModuleFiles.add(artifact);
       return this;
     }
     /** Adds a pic modules info file. */

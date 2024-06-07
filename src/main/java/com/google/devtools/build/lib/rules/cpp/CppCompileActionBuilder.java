@@ -54,7 +54,7 @@ public final class CppCompileActionBuilder {
   private Artifact outputFile;
   private Artifact modmapFile;
   private Artifact modmapInputFile;
-  private NestedSet<Artifact.DerivedArtifact> pcmFiles;
+  private NestedSet<Artifact.DerivedArtifact> moduleFiles;
   private Artifact dwoFile;
   private Artifact ltoIndexingFile;
   private Artifact dotdFile;
@@ -132,7 +132,7 @@ public final class CppCompileActionBuilder {
     this.ccToolchain = other.ccToolchain;
     this.actionName = other.actionName;
     this.additionalOutputs = other.additionalOutputs;
-    this.pcmFiles = other.pcmFiles;
+    this.moduleFiles = other.moduleFiles;
     this.modmapFile = other.modmapFile;
     this.modmapInputFile = other.modmapInputFile;
   }
@@ -324,7 +324,7 @@ public final class CppCompileActionBuilder {
             getBuiltinIncludeDirectories(),
             ccToolchain.getGrepIncludes(),
             additionalOutputs,
-            pcmFiles,
+            moduleFiles,
             modmapInputFile);
     return action;
   }
@@ -368,11 +368,11 @@ public final class CppCompileActionBuilder {
     if (CppActionNames.CPP20_DEPS_SCANNING.equals(actionName)) {
       // scan deps, do nothing
     }
-    else if (Cpp20ModuleHelper.isCpp20ModuleCompilationAction(actionName)
+    else if (CppCompileAction.isCpp20ModuleCompilationAction(actionName)
             || CppFileTypes.CPP_SOURCE.matches(sourceFile.getExecPath())) {
       // C++20 module compile and codegen
       // or C++ source compile
-      if (featureConfiguration.isEnabled(CppRuleClasses.CPP20_MODULE)) {
+      if (featureConfiguration.isEnabled(CppRuleClasses.CPP20_MODULES)) {
         Preconditions.checkNotNull(modmapFile);
         Preconditions.checkNotNull(modmapInputFile);
         realMandatoryInputsBuilder.add(modmapFile).add(modmapInputFile);
@@ -653,8 +653,8 @@ public final class CppCompileActionBuilder {
     }
 
     @CanIgnoreReturnValue
-    public CppCompileActionBuilder setPcmFiles(NestedSet<Artifact.DerivedArtifact> pcmFiles) {
-        this.pcmFiles = pcmFiles;
+    public CppCompileActionBuilder setModuleFiles(NestedSet<Artifact.DerivedArtifact> moduleFiles) {
+        this.moduleFiles = moduleFiles;
         return this;
     }
   ImmutableList<PathFragment> getBuiltinIncludeDirectories() throws EvalException {
