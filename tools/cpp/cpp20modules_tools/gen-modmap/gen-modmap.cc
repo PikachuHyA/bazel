@@ -22,7 +22,7 @@ void write_modmap(std::ostream &modmap_file_stream,
     } else if (compiler == "gcc") {
       modmap_file_stream << item.name << " " << item.path << "\n";
     }
-    else if (compiler == "msvc") {
+    else if (compiler == "msvc-cl") {
       modmap_file_stream << "/reference " << item.name << "=" << item.path << "\n";
     }
     else {
