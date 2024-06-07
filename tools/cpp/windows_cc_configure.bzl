@@ -812,7 +812,7 @@ def _get_msvc_deps_scanner_vars(repository_ctx, paths, template_vars, target_arc
     )
 
     return {
-        "%{msvc_deps_scanner_wrapper_path_" + target_arch + "}": "deps_scanner_wrapper_" + target_arch + ".bat",
+        "%{msvc_deps_scanner_wrapper_path_" + target_arch + "}": "msvc_deps_scanner_wrapper_" + target_arch + ".bat",
     }
 
 def configure_windows_toolchain(repository_ctx):
