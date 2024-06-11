@@ -22,6 +22,7 @@ filegroup(
     name = "srcs",
     srcs = glob(["**"]) + [
         "//tools/cpp/runfiles:srcs",
+        "//tools/cpp/cpp20modules_tools:srcs",
     ],
 )
 

@@ -12,6 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+filegroup(
+    name = "srcs",
+    srcs = glob(
+        ["**"],
+    ),
+    visibility = ["//tools/cpp:__pkg__"],
+)
+
 cc_library(
     name = "common",
     srcs = ["common/common.cc"],
