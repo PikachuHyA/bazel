@@ -53,7 +53,7 @@ int main(int argc, char *argv[]) {
   }
 
   // Process ddi files
-  for (int i =0;i<ddi.size();i++) {
+  for (std::size_t i = 0; i < ddi.size(); i++) {
     auto ddi_filename = ddi[i];
     auto pcm_path = module_file[i];
     std::ifstream ddi_stream(ddi_filename);
