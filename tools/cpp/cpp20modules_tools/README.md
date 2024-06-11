@@ -44,7 +44,7 @@ for example,
 #### Usage
 
 ```sh
-agg-ddi -m <cpp20modules-info-file1> -m <cpp20modules-info-file2> ... -d <ddi-file1> <path/to/pcm1> -d <ddi-file2> <path/to/pcm2> ... -o <output-file> [--verbose]
+agg-ddi -m <cpp20modules-info-file1> -m <cpp20modules-info-file2> ... -d <ddi-file1> <path/to/pcm1> -d <ddi-file2> <path/to/pcm2> ... -o <output-file>
 ```
 
 #### Command Line Arguments
@@ -52,12 +52,11 @@ agg-ddi -m <cpp20modules-info-file1> -m <cpp20modules-info-file2> ... -d <ddi-fi
 - `-m <cpp20modules-info-file>`: Path to a JSON file containing C++20 module information.
 - `-d <ddi-file> <pcm-path>`: Path to a DDI file and its associated PCM path.
 - `-o <output-file>`: Path to the output file where the aggregated information will be stored.
-- `--verbose`: Optional flag to enable verbose output.
 
 #### Example
 
 ```sh
-agg-ddi -m module-info1.json -m module-info2.json -d ddi1.json /path/to/pcm1 -d ddi2.json /path/to/pcm2 -o output.json --verbose
+agg-ddi -m module-info1.json -m module-info2.json -d ddi1.json /path/to/pcm1 -d ddi2.json /path/to/pcm2 -o output.json
 ```
 
 ### `gen-modmap`
@@ -69,7 +68,7 @@ agg-ddi -m module-info1.json -m module-info2.json -d ddi1.json /path/to/pcm1 -d 
 #### Usage
 
 ```sh
-gen-modmap <ddi-file> <cpp20modules-info-file> <output-file>
+gen-modmap <ddi-file> <cpp20modules-info-file> <output-file> <compiler>
 ```
 
 #### Command Line Arguments
@@ -77,11 +76,12 @@ gen-modmap <ddi-file> <cpp20modules-info-file> <output-file>
 - `<ddi-file>`: Path to the DDI file containing module dependencies.
 - `<cpp20modules-info-file>`: Path to the JSON file containing C++20 modules information.
 - `<output-file>`: Path to the output file where the module map will be stored.
+- `<compiler>`: Compiler type the modmap to use. Only `clang`, `gcc`, `msvc-cl` supported.
 
 #### Example
 
 ```sh
-gen-modmap ddi.json cpp20modules-info.json modmap
+gen-modmap ddi.json cpp20modules-info.json modmap clang
 ```
 
 This command will generate two files:
