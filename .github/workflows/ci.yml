@@ -1,0 +1,16 @@
+name: Bazel
+
+on:
+  push:
+    branches: [ cxx20-modules-support-patch-2-ci ]
+  pull_request:
+    branches: [ cxx20-modules-support-patch-2-ci ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Test bazel_bootstrap_distfile_tar_test
+        run: bazel test //src/test/shell/bazel:bazel_bootstrap_distfile_tar_test
