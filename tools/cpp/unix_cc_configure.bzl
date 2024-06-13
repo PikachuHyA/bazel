@@ -90,8 +90,7 @@ def _get_tool_paths(repository_ctx, overriden_tools):
             "nm",
             "objcopy",
             "objdump",
-            "strip",
-            "deps-scanner",
+            "strip"
         ]
     }.items())
 
@@ -417,7 +416,7 @@ def configure_unix_toolchain(repository_ctx, cpu_value, overriden_tools):
     deps_scanner_wrapper_src = (
         "@bazel_tools//tools/cpp:clang_deps_scanner_wrapper.sh.tpl" if is_clang else "@bazel_tools//tools/cpp:gcc_deps_scanner_wrapper.sh.tpl"
     )
-    deps_scanner = ""
+    deps_scanner = "deps-scanner_not_found"
     if is_clang:
         cc_str = str(cc)
         path_arr = cc_str.split("/")[:-1]

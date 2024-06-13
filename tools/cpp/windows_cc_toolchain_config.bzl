@@ -266,7 +266,7 @@ def _impl(ctx):
             tools = [tool(path = ctx.attr.msvc_link_path)],
         )
 
-        deps_scanner = ""
+        deps_scanner = "deps-scanner_not_found"
         if "deps-scanner" in ctx.attr.tool_paths:
             deps_scanner = ctx.attr.tool_paths["deps-scanner"]
         cpp20_scan_deps = action_config(
