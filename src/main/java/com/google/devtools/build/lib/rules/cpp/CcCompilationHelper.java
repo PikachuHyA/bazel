@@ -1181,7 +1181,6 @@ public final class CcCompilationHelper {
                       : ArtifactCategory.OBJECT_FILE;
       builder.setOutputs(
               actionConstructionContext, ruleErrorConsumer, label, outputCategory, outputName);
-      System.out.println("use pic: " + usePic + ", dotd: " + builder.getDotdFile());
       ImmutableMap<String, String> additionalBuildVariables = ImmutableMap.<String, String>builder()
               .put(CompileBuildVariables.CPP20_MODULE_OUTPUT_FILE.getVariableName(), moduleFile.getExecPathString())
               .put(CompileBuildVariables.CPP20_MODMAP_FILE.getVariableName(), modmapFile.getExecPathString())
@@ -2119,7 +2118,7 @@ public final class CcCompilationHelper {
               generateDwo,
               noPicDwoFile,
               ltoIndexingFile,
-              /* additionalBuildVariables= */ ImmutableMap.of()));
+              additionalBuildVariables));
 
     result.addTemps(
             createTempsActions(
