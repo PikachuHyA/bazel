@@ -274,7 +274,7 @@ def _impl(ctx):
         "compiler_input_flags",
         "compiler_output_flags",
     ]
-    cpp20_scan_deps = action_config(
+    cpp_module_scan_deps = action_config(
         action_name = ACTION_NAMES.cpp_module_deps_scanning,
         tools = [
             tool(
@@ -283,7 +283,7 @@ def _impl(ctx):
         ],
         implies = compile_implies,
     )
-    action_configs.append(cpp20_scan_deps)
+    action_configs.append(cpp_module_scan_deps)
 
     cpp20_module_compile = action_config(
         action_name = ACTION_NAMES.cpp20_module_compile,

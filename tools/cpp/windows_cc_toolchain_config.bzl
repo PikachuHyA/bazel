@@ -269,7 +269,7 @@ def _impl(ctx):
         deps_scanner = "cpp-module-deps-scanner_not_found"
         if "cpp-module-deps-scanner" in ctx.attr.tool_paths:
             deps_scanner = ctx.attr.tool_paths["cpp-module-deps-scanner"]
-        cpp20_scan_deps = action_config(
+        cpp_module_scan_deps = action_config(
             action_name = ACTION_NAMES.cpp_module_deps_scanning,
             tools = [
                 tool(
@@ -341,7 +341,7 @@ def _impl(ctx):
             cpp_link_dynamic_library_action,
             cpp_link_nodeps_dynamic_library_action,
             cpp_link_static_library_action,
-            cpp20_scan_deps,
+            cpp_module_scan_deps,
             cpp20_module_compile,
             cpp20_module_codegen,
         ]
