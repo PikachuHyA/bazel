@@ -96,8 +96,8 @@ def _create_cc_toolchain_info(
         allowlist_for_layering_check,
         build_info_files,
         objcopy_files,
-        agg_ddi,
-        gen_modmap):
+        aggregate_ddi,
+        _generate_modmap):
     cc_toolchain_info = dict(
         needs_pic_for_dynamic_libraries = (lambda *, feature_configuration: True) if cpp_configuration.force_pic() else _needs_pic_for_dynamic_libraries,
         built_in_include_directories = built_in_include_directories,
@@ -159,8 +159,8 @@ def _create_cc_toolchain_info(
         _allowlist_for_layering_check = allowlist_for_layering_check,
         _cc_info = cc_info,
         _objcopy_files = objcopy_files,
-        _aggregate_ddi = agg_ddi,
-        _generate_modmap = gen_modmap,
+        _aggregate_ddi = aggregate_ddi,
+        _generate_modmap = _generate_modmap,
     )
     return cc_toolchain_info
 
