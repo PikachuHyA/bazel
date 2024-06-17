@@ -159,8 +159,8 @@ def _create_cc_toolchain_info(
         _allowlist_for_layering_check = allowlist_for_layering_check,
         _cc_info = cc_info,
         _objcopy_files = objcopy_files,
-        _agg_ddi = agg_ddi,
-        _gen_modmap = gen_modmap,
+        _aggregate_ddi = agg_ddi,
+        _generate_modmap = gen_modmap,
     )
     return cc_toolchain_info
 
@@ -254,8 +254,8 @@ CcToolchainInfo, _ = provider(
         "_allowlist_for_layering_check": "INTERNAL API, DO NOT USE!",
         "_cc_info": "INTERNAL API, DO NOT USE!",
         "_objcopy_files": "INTERNAL API, DO NOT USE!",
-        "_agg_ddi": "INTERNAL API, DO NOT USE!",
-        "_gen_modmap": "INTERNAL API, DO NOT USE!",
+        "_aggregate_ddi": "INTERNAL API, DO NOT USE!",
+        "_generate_modmap": "INTERNAL API, DO NOT USE!",
     },
     init = _create_cc_toolchain_info,
 )
