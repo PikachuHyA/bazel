@@ -16,6 +16,8 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include "json.hpp"
+
 struct Cpp20ModulesInfo {
   std::unordered_map<std::string, std::string> modules;
   std::unordered_map<std::string, std::vector<std::string>> usages;

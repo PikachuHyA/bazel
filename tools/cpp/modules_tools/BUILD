@@ -23,11 +23,10 @@ filegroup(
 cc_library(
     name = "common",
     srcs = [
-        "common/Json.cc",
         "common/common.cc",
     ],
     hdrs = [
-        "common/Json.h",
+        "common/json.hpp",
         "common/common.h",
     ],
     includes = ["."],
@@ -92,6 +91,15 @@ cc_test(
 cc_test(
     name = "common_test",
     srcs = ["common/common_test.cc"],
+    deps = [
+        ":common",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "json_test",
+    srcs = ["common/json_test.cc"],
     deps = [
         ":common",
         "@com_google_googletest//:gtest_main",

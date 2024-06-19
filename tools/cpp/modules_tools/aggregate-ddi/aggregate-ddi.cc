@@ -21,7 +21,6 @@
 #include <vector>
 
 #include "aggregate-ddi.h"
-#include "common/Json.h"
 void write_output(std::ostream &output, const Cpp20ModulesInfo &info) {
   JsonValue::ObjectType obj;
   JsonValue::ObjectType modules;

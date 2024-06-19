@@ -12,6 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#pragma once
+
+#include <any>
+#include <map>
+#include <string>
+#include <variant>
 #include <algorithm>
 #include <cmath>
 #include <iomanip>
@@ -24,7 +30,61 @@
 #include <variant>
 #include <vector>
 
-#include "Json.h"
+// Define a basic struct for JSON values
+struct JsonValue {
+  using ObjectType = std::map<std::string, JsonValue>;
+  using ArrayType = std::vector<JsonValue>;
+
+  std::variant<std::string, bool, long, double, ObjectType, ArrayType,
+               std::nullptr_t>
+      value;
+
+  JsonValue() : value(nullptr) {}
+  JsonValue(const std::string &v) : value(v) {}
+  JsonValue(const char *v) : value(std::string(v)) {}
+  JsonValue(bool v) : value(v) {}
+  JsonValue(long v) : value(v) {}
+  JsonValue(int v) : value((long)v) {}
+  JsonValue(double v) : value(v) {}
+  JsonValue(const ObjectType &v) : value(v) {}
+  JsonValue(const ArrayType &v) : value(v) {}
+  JsonValue(std::nullptr_t) : value(nullptr) {}
+
+  bool is_null() const { return std::holds_alternative<std::nullptr_t>(value); }
+  bool is_string() const { return std::holds_alternative<std::string>(value); }
+  bool is_object() const { return std::holds_alternative<ObjectType>(value); }
+  bool is_array() const { return std::holds_alternative<ArrayType>(value); }
+  bool is_bool() const { return std::holds_alternative<bool>(value); }
+  bool is_long() const { return std::holds_alternative<long>(value); }
+  bool is_double() const { return std::holds_alternative<double>(value); }
+
+  const std::string &as_string() const { return std::get<std::string>(value); }
+  const ObjectType &as_object() const { return std::get<ObjectType>(value); }
+  const ArrayType &as_array() const { return std::get<ArrayType>(value); }
+  bool as_bool() const { return std::get<bool>(value); }
+  long as_long() const { return std::get<long>(value); }
+  double as_double() const { return std::get<double>(value); }
+
+      // Implement equality operator
+      bool operator==(const JsonValue& other) const {
+          if (value.index() != other.value.index()) return false;
+
+          if (is_null()) return true;
+          if (is_string()) return as_string() == other.as_string();
+          if (is_bool()) return as_bool() == other.as_bool();
+          if (is_long()) return as_long() == other.as_long();
+          if (is_double()) return as_double() == other.as_double();
+          if (is_object()) return as_object() == other.as_object();
+          if (is_array()) return as_array() == other.as_array();
+
+          return false;
+      }
+
+      bool operator!=(const JsonValue& other) const {
+          return !(*this == other);
+      }
+};
+
 // Define the JSON parser class
 class Json {
 public:
@@ -73,8 +133,8 @@ private:
         out << std::boolalpha << x.as_bool();
         return;
       }
-      if (x.is_int()) {
-        out << x.as_int();
+      if (x.is_long()) {
+        out << x.as_long();
         return;
       }
       if (x.is_double()) {
@@ -146,7 +206,7 @@ private:
         default:
           if ('\x00' <= c && c <= '\x1f') {
             out << "\\u" << std::hex << std::setw(4) << std::setfill('0')
-                << static_cast<int>(c);
+                << static_cast<long>(c);
           } else {
             out << c;
           }
@@ -291,7 +351,7 @@ private:
     }
 
     JsonValue parse_number(char c) {
-      size_t j = i;
+      size_t j = i + 1;
       bool isfloat = false;
       while (j < s.size()) {
         c = s[j];
@@ -312,7 +372,7 @@ private:
         iss >> d;
         return d;
       } else {
-        int n;
+        long n;
         iss >> n;
         return n;
       }
@@ -334,12 +394,12 @@ private:
   };
 };
 
-JsonValue parse_json(const std::string &data) {
+inline JsonValue parse_json(const std::string &data) {
   Json &json = Json::instance();
   return json.decode(data);
 }
 
-std::string to_json(const JsonValue &data) {
+inline std::string to_json(const JsonValue &data) {
   Json &json = Json::instance();
   return json.encode(data);
 }
