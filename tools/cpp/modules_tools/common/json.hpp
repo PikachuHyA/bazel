@@ -149,12 +149,12 @@ private:
         const auto &m = x.as_object();
         out << '{';
         std::string sep = "";
-        for (const auto &[key, value] : m) {
+        for (const auto &item : m) {
           out << sep;
           sep = ",";
-          append_quoted(key);
+          append_quoted(item.first);
           out << ':';
-          encode(value);
+          encode(item.second);
         }
         out << '}';
         return;
