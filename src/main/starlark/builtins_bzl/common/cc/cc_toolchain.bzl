@@ -99,7 +99,7 @@ def _attributes(ctx):
         link_dynamic_library_tool = ctx.file._link_dynamic_library_tool,
         grep_includes = grep_includes,
         aggregate_ddi = _single_file(ctx, "_aggregate_ddi"),
-        _generate_modmap = _single_file(ctx, "_generate_modmap"),
+        generate_modmap = _single_file(ctx, "_generate_modmap"),
         module_map = ctx.attr.module_map,
         as_files = _files(ctx, "as_files"),
         ar_files = _files(ctx, "ar_files"),

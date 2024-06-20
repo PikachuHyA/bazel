@@ -298,7 +298,7 @@ def get_cc_toolchain_provider(ctx, attributes):
         link_dynamic_library_tool = attributes.link_dynamic_library_tool,
         grep_includes = attributes.grep_includes,
         aggregate_ddi = attributes.aggregate_ddi,
-        _generate_modmap = attributes._generate_modmap,
+        generate_modmap = attributes.generate_modmap,
         allowlist_for_layering_check = attributes.allowlist_for_layering_check,
         build_info_files = attributes.build_info_files,
         toolchain_label = ctx.label,
