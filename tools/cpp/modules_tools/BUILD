@@ -20,16 +20,27 @@ filegroup(
     visibility = ["//tools/cpp:__pkg__"],
 )
 
+config_setting(
+    name = "windows",
+    constraint_values = ["@platforms//os:windows"],
+)
+
+COPTS = select({
+    ":windows": ["/std:c++17"],
+    "//conditions:default": ["-std=c++17"],
+})
+
 cc_library(
     name = "common",
     srcs = [
         "common/common.cc",
     ],
     hdrs = [
-        "common/json.hpp",
         "common/common.h",
+        "common/json.hpp",
     ],
     includes = ["."],
+    copts = COPTS,
 )
 
 cc_library(
@@ -37,6 +48,7 @@ cc_library(
     srcs = ["aggregate-ddi/aggregate-ddi.cc"],
     hdrs = ["aggregate-ddi/aggregate-ddi.h"],
     deps = [":common"],
+    copts = COPTS,
 )
 
 cc_binary(
@@ -45,6 +57,7 @@ cc_binary(
     deps = [
         ":aggregate-ddi-lib",
     ],
+    copts = COPTS,
 )
 
 cc_library(
@@ -52,12 +65,14 @@ cc_library(
     srcs = ["generate-modmap/generate-modmap.cc"],
     hdrs = ["generate-modmap/generate-modmap.h"],
     deps = [":common"],
+    copts = COPTS,
 )
 
 cc_binary(
     name = "generate-modmap",
     srcs = ["generate-modmap/main.cc"],
     deps = [":generate-modmap-lib"],
+    copts = COPTS,
 )
 
 filegroup(
@@ -77,6 +92,7 @@ cc_test(
         ":generate-modmap-lib",
         "@com_google_googletest//:gtest_main",
     ],
+    copts = COPTS,
 )
 
 cc_test(
@@ -86,6 +102,7 @@ cc_test(
         ":aggregate-ddi-lib",
         "@com_google_googletest//:gtest_main",
     ],
+    copts = COPTS,
 )
 
 cc_test(
@@ -95,6 +112,7 @@ cc_test(
         ":common",
         "@com_google_googletest//:gtest_main",
     ],
+    copts = COPTS,
 )
 
 cc_test(
@@ -104,4 +122,5 @@ cc_test(
         ":common",
         "@com_google_googletest//:gtest_main",
     ],
+    copts = COPTS,
 )
