@@ -14,11 +14,8 @@
 
 #pragma once
 
-#include <any>
-#include <map>
-#include <string>
-#include <variant>
 #include <algorithm>
+#include <any>
 #include <cmath>
 #include <iomanip>
 #include <iostream>
@@ -65,24 +62,30 @@ struct JsonValue {
   long as_long() const { return std::get<long>(value); }
   double as_double() const { return std::get<double>(value); }
 
-      // Implement equality operator
-      bool operator==(const JsonValue& other) const {
-          if (value.index() != other.value.index()) return false;
+  // Implement equality operator
+  bool operator==(const JsonValue &other) const {
+    if (value.index() != other.value.index())
+      return false;
 
-          if (is_null()) return true;
-          if (is_string()) return as_string() == other.as_string();
-          if (is_bool()) return as_bool() == other.as_bool();
-          if (is_long()) return as_long() == other.as_long();
-          if (is_double()) return as_double() == other.as_double();
-          if (is_object()) return as_object() == other.as_object();
-          if (is_array()) return as_array() == other.as_array();
+    if (is_null())
+      return true;
+    if (is_string())
+      return as_string() == other.as_string();
+    if (is_bool())
+      return as_bool() == other.as_bool();
+    if (is_long())
+      return as_long() == other.as_long();
+    if (is_double())
+      return as_double() == other.as_double();
+    if (is_object())
+      return as_object() == other.as_object();
+    if (is_array())
+      return as_array() == other.as_array();
 
-          return false;
-      }
+    return false;
+  }
 
-      bool operator!=(const JsonValue& other) const {
-          return !(*this == other);
-      }
+  bool operator!=(const JsonValue &other) const { return !(*this == other); }
 };
 
 // Define the JSON parser class

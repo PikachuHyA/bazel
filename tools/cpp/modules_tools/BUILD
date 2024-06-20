@@ -39,40 +39,40 @@ cc_library(
         "common/common.h",
         "common/json.hpp",
     ],
-    includes = ["."],
     copts = COPTS,
+    includes = ["."],
 )
 
 cc_library(
     name = "aggregate-ddi-lib",
     srcs = ["aggregate-ddi/aggregate-ddi.cc"],
     hdrs = ["aggregate-ddi/aggregate-ddi.h"],
-    deps = [":common"],
     copts = COPTS,
+    deps = [":common"],
 )
 
 cc_binary(
     name = "aggregate-ddi",
     srcs = ["aggregate-ddi/main.cc"],
+    copts = COPTS,
     deps = [
         ":aggregate-ddi-lib",
     ],
-    copts = COPTS,
 )
 
 cc_library(
     name = "generate-modmap-lib",
     srcs = ["generate-modmap/generate-modmap.cc"],
     hdrs = ["generate-modmap/generate-modmap.h"],
-    deps = [":common"],
     copts = COPTS,
+    deps = [":common"],
 )
 
 cc_binary(
     name = "generate-modmap",
     srcs = ["generate-modmap/main.cc"],
-    deps = [":generate-modmap-lib"],
     copts = COPTS,
+    deps = [":generate-modmap-lib"],
 )
 
 filegroup(
@@ -88,39 +88,39 @@ filegroup(
 cc_test(
     name = "generate-modmap_test",
     srcs = ["generate-modmap/generate-modmap_test.cc"],
+    copts = COPTS,
     deps = [
         ":generate-modmap-lib",
         "@com_google_googletest//:gtest_main",
     ],
-    copts = COPTS,
 )
 
 cc_test(
     name = "aggregate-ddi_test",
     srcs = ["aggregate-ddi/aggregate-ddi_test.cc"],
+    copts = COPTS,
     deps = [
         ":aggregate-ddi-lib",
         "@com_google_googletest//:gtest_main",
     ],
-    copts = COPTS,
 )
 
 cc_test(
     name = "common_test",
     srcs = ["common/common_test.cc"],
+    copts = COPTS,
     deps = [
         ":common",
         "@com_google_googletest//:gtest_main",
     ],
-    copts = COPTS,
 )
 
 cc_test(
     name = "json_test",
     srcs = ["common/json_test.cc"],
+    copts = COPTS,
     deps = [
         ":common",
         "@com_google_googletest//:gtest_main",
     ],
-    copts = COPTS,
 )
