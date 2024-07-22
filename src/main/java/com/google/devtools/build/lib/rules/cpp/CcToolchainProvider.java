@@ -443,13 +443,13 @@ public final class CcToolchainProvider {
   /** Returns the tool that aggregates all .ddi files to .CXXModules.json file. */
   @Nullable
   public Artifact getAggDdi() throws EvalException {
-    return value.getNoneableValue("_agg_ddi", Artifact.class);
+    return value.getNoneableValue("_aggregate_ddi", Artifact.class);
   }
 
   /** Returns the tool that generates .modmap file according to .CXXModules.json and .ddi file. */
   @Nullable
   public Artifact getGenModmap() throws EvalException {
-    return value.getNoneableValue("_gen_modmap", Artifact.class);
+    return value.getNoneableValue("_generate_modmap", Artifact.class);
   }
 
   /** Returns the tool that builds interface libraries from dynamic libraries. */
