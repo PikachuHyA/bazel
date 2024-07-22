@@ -925,7 +925,12 @@ public class CppCompileAction extends AbstractAction implements IncludeScannable
       // of getcwd() into the debug info. Not applicable to Darwin or Windows, which have no /proc.
       environment.put("PWD", "/proc/self/cwd");
     }
-
+    if (Objects.equals(CppActionNames.CPP_MODULE_DEPS_SCANNING, actionName)) {
+      // export DEPS_SCANNER_OUTPUT_FILE
+      // redirect clang-scan-deps output to outputFile
+      // due to clang-scan-deps has no option like `-o` to specify the output file
+      environment.put("DEPS_SCANNER_OUTPUT_FILE", getPrimaryOutput().getExecPathString());
+    }
     environment.putAll(compileCommandLine.getEnvironment(pathMapper));
     return ImmutableMap.copyOf(environment);
   }
@@ -1694,15 +1699,6 @@ public class CppCompileAction extends AbstractAction implements IncludeScannable
     }
 
     try {
-      var envOld = getEffectiveEnvironment(clientEnv);
-      Map<String, String> environment = Maps.newLinkedHashMapWithExpectedSize(envOld.size() + 1);
-      environment.putAll(envOld);
-      if (Objects.equals(CppActionNames.CPP_MODULE_DEPS_SCANNING, actionName)) {
-        // export DEPS_SCANNER_OUTPUT_FILE
-        // redirect clang-scan-deps output to outputFile
-        // due to clang-scan-deps has no option like `-o` to specify the output file
-        environment.put("DEPS_SCANNER_OUTPUT_FILE", getPrimaryOutput().getExecPathString());
-      }
       return new SimpleSpawn(
           this,
           ImmutableList.copyOf(getArguments(pathMapper)),
