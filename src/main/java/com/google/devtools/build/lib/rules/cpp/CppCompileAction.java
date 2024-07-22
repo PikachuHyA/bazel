@@ -359,7 +359,7 @@ public class CppCompileAction extends AbstractAction implements IncludeScannable
     }
     outputs.addAll(additionalOutputs);
     if (dotdFile != null) {
-      if (featureConfiguration.isEnabled(CppRuleClasses.CPP20_MODULES)) {
+      if (featureConfiguration.isEnabled(CppRuleClasses.CPP_MODULES)) {
         switch (actionName) {
           case CppActionNames.CPP20_MODULE_CODEGEN:
           {
@@ -367,7 +367,7 @@ public class CppCompileAction extends AbstractAction implements IncludeScannable
           }
           case CppActionNames.CPP_COMPILE:
           case CppActionNames.CPP20_MODULE_COMPILE:
-          case CppActionNames.CPP20_DEPS_SCANNING:
+          case CppActionNames.CPP_MODULE_DEPS_SCANNING:
           // other source files. e.g. c
           default: {
             outputs.add(dotdFile);
@@ -1244,7 +1244,7 @@ public class CppCompileAction extends AbstractAction implements IncludeScannable
     switch (actionName) {
       case CppActionNames.CPP_HEADER_ANALYSIS:
         return "Header analysis for " + getSourceFile().prettyPrint();
-      case CppActionNames.CPP20_DEPS_SCANNING:
+      case CppActionNames.CPP_MODULE_DEPS_SCANNING:
         return "Deps scanning for " + getSourceFile().prettyPrint();
       default:
         return "Compiling " + getSourceFile().prettyPrint();
@@ -1585,11 +1585,11 @@ public class CppCompileAction extends AbstractAction implements IncludeScannable
     private Set<DerivedArtifact> computeUsedCpp20Modules(ActionExecutionContext actionExecutionContext)
             throws ActionExecutionException, InterruptedException {
         // if cpp20_module not enable, skip
-        if (!featureConfiguration.isEnabled(CppRuleClasses.CPP20_MODULES)) {
+        if (!featureConfiguration.isEnabled(CppRuleClasses.CPP_MODULES)) {
             return Set.of();
         }
         // c++20-deps-scanning use source file and header files only
-        if (Objects.equals(CppActionNames.CPP20_DEPS_SCANNING, actionName)) {
+        if (Objects.equals(CppActionNames.CPP_MODULE_DEPS_SCANNING, actionName)) {
             return Set.of();
         }
         if (!isCpp20ModuleCompilationAction(actionName)
@@ -1697,7 +1697,7 @@ public class CppCompileAction extends AbstractAction implements IncludeScannable
       var envOld = getEffectiveEnvironment(clientEnv);
       Map<String, String> environment = Maps.newLinkedHashMapWithExpectedSize(envOld.size() + 1);
       environment.putAll(envOld);
-      if (Objects.equals(CppActionNames.CPP20_DEPS_SCANNING, actionName)) {
+      if (Objects.equals(CppActionNames.CPP_MODULE_DEPS_SCANNING, actionName)) {
         // export DEPS_SCANNER_OUTPUT_FILE
         // redirect clang-scan-deps output to outputFile
         // due to clang-scan-deps has no option like `-o` to specify the output file
@@ -1920,7 +1920,7 @@ public class CppCompileAction extends AbstractAction implements IncludeScannable
             : CPP_COMPILE_MNEMONIC + suffix;
       case CppActionNames.CPP_HEADER_ANALYSIS:
         return "CppHeaderAnalysis";
-      case CppActionNames.CPP20_DEPS_SCANNING:
+      case CppActionNames.CPP_MODULE_DEPS_SCANNING:
         return "CppDepsScanning";
       default:
         return CPP_COMPILE_MNEMONIC;

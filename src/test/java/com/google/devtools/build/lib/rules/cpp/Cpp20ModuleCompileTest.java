@@ -18,7 +18,7 @@ public class Cpp20ModuleCompileTest extends BuildViewTestCase {
   private void enableCpp20Module() throws Exception {
     getAnalysisMock().ccSupport().setupCcToolchainConfig(
         mockToolsConfig, Crosstool.CcToolchainConfig.builder().withFeatures(
-                             CppRuleClasses.CPP20_MODULES));
+                             CppRuleClasses.CPP_MODULES));
   }
   // if we use module_interfaces
   // we need to enable cpp20_module feature
@@ -56,9 +56,9 @@ public class Cpp20ModuleCompileTest extends BuildViewTestCase {
   public void testCpp20ModuleFeatureEnabled() throws Exception {
     enableCpp20Module();
     reporter.removeHandler(failFastHandler);
-    scratch.file(
-        "foo/BUILD",
-        "cc_library(name='foo', module_interfaces=['foo.cppm'], features=['cpp20_module'])");
+    scratch.file("foo/BUILD",
+                 "cc_library(name='foo', module_interfaces=['foo.cppm'], " +
+                 "features=['cpp20_module'])");
     scratch.file("foo/foo.cppm", "foo");
     getConfiguredTarget("//foo:foo");
     assertDoesNotContainEvent(
@@ -69,11 +69,11 @@ public class Cpp20ModuleCompileTest extends BuildViewTestCase {
   @Test
   public void testSameCcFileTwice1() throws Exception {
     enableCpp20Module();
-    scratch.file(
-        "a/BUILD",
-        "cc_library(name='a', module_interfaces=['a1', 'a2'], features=['cpp20_module'])",
-        "filegroup(name='a1', srcs=['a.cc'])",
-        "filegroup(name='a2', srcs=['a.cc'])");
+    scratch.file("a/BUILD",
+                 "cc_library(name='a', module_interfaces=['a1', 'a2'], " +
+                 "features=['cpp20_module'])",
+                 "filegroup(name='a1', srcs=['a.cc'])",
+                 "filegroup(name='a2', srcs=['a.cc'])");
     reporter.removeHandler(failFastHandler);
     getConfiguredTarget("//a:a");
     assertContainsEvent("Artifact 'a/a.cc' is duplicated");
@@ -85,11 +85,11 @@ public class Cpp20ModuleCompileTest extends BuildViewTestCase {
   @Test
   public void testSameCcFileTwice2() throws Exception {
     enableCpp20Module();
-    scratch.file(
-        "a/BUILD",
-        "cc_library(name='a', srcs=['a1'], module_interfaces=['a2'], features=['cpp20_module'])",
-        "filegroup(name='a1', srcs=['a.cc'])",
-        "filegroup(name='a2', srcs=['a.cc'])");
+    scratch.file("a/BUILD",
+                 "cc_library(name='a', srcs=['a1'], " +
+                 "module_interfaces=['a2'], features=['cpp20_module'])",
+                 "filegroup(name='a1', srcs=['a.cc'])",
+                 "filegroup(name='a2', srcs=['a.cc'])");
     reporter.removeHandler(failFastHandler);
     getConfiguredTarget("//a:a");
     assertContainsEvent("Artifact 'a/a.cc' is duplicated");

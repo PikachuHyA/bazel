@@ -873,7 +873,7 @@ public final class CcCompilationHelper {
     // Create compile actions (both PIC and no-PIC).
     try {
       CcCompilationOutputs ccOutputs;
-      if (featureConfiguration.isEnabled(CppRuleClasses.CPP20_MODULES)) {
+      if (featureConfiguration.isEnabled(CppRuleClasses.CPP_MODULES)) {
         // Handle C++20 Module compile
         ccOutputs = createCcCompileActionsWithCpp20Module();
         publicCompilationContext =
@@ -1015,8 +1015,8 @@ public final class CcCompilationHelper {
   private CcCompilationOutputs createCcCompileActionsWithCpp20Module()
       throws RuleErrorException, EvalException, InterruptedException {
     Preconditions.checkState(
-        featureConfiguration.isEnabled(CppRuleClasses.CPP20_MODULES),
-        "to use C++20 Modules, the feature cpp20_modules must be enabled");
+        featureConfiguration.isEnabled(CppRuleClasses.CPP_MODULES),
+        "to use C++20 Modules, the feature CPP_MODULES must be enabled");
     Preconditions.checkNotNull(ccCompilationContext);
     CcCompilationOutputs.Builder result = CcCompilationOutputs.builder();
     // merge module interfaces and ordinary sources
@@ -1059,7 +1059,7 @@ public final class CcCompilationHelper {
             actionConstructionContext,
             label,
             CppHelper.getArtifactNameForCategory(
-                ccToolchain, ArtifactCategory.CPP20_MODULES_INFO, modulesInfoFileName),
+                ccToolchain, ArtifactCategory.CPP_MODULES_INFO, modulesInfoFileName),
             configuration);
     if (usePic) {
       result.addPicModulesInfoFile(modulesInfoFile);
@@ -1091,7 +1091,7 @@ public final class CcCompilationHelper {
       // the format is https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2022/p1689r5.html
       var ddiOutputName =
           CppHelper.getArtifactNameForCategory(
-              ccToolchain, ArtifactCategory.CPP20_MODULES_DDI, outputName);
+              ccToolchain, ArtifactCategory.CPP_MODULES_DDI, outputName);
       Artifact ddiFile =
           CppHelper.getCompileOutputArtifact(
               actionConstructionContext, label, ddiOutputName, configuration);
@@ -1153,7 +1153,7 @@ public final class CcCompilationHelper {
               actionConstructionContext,
               label,
               CppHelper.getArtifactNameForCategory(
-                  ccToolchain, ArtifactCategory.CPP20_MODULES_MODMAP, outputName),
+                  ccToolchain, ArtifactCategory.CPP_MODULES_MODMAP, outputName),
               configuration);
       // all path/to/bmi are put in .modmap.input file,
       // which is convenient to get all bmi in CppCompileAction
@@ -1162,7 +1162,7 @@ public final class CcCompilationHelper {
               actionConstructionContext,
               label,
               CppHelper.getArtifactNameForCategory(
-                  ccToolchain, ArtifactCategory.CPP20_MODULES_MODMAP_INPUT, outputName),
+                  ccToolchain, ArtifactCategory.CPP_MODULES_MODMAP_INPUT, outputName),
               configuration);
       var ddiFile = ddiFileMap.get(sourceArtifact);
       Preconditions.checkNotNull(ddiFile);
@@ -1184,10 +1184,10 @@ public final class CcCompilationHelper {
       ImmutableMap<String, String> additionalBuildVariables =
           ImmutableMap.<String, String>builder()
               .put(
-                  CompileBuildVariables.CPP20_MODULE_OUTPUT_FILE.getVariableName(),
+                  CompileBuildVariables.CPP_MODULE_OUTPUT_FILE.getVariableName(),
                   moduleFile.getExecPathString())
               .put(
-                  CompileBuildVariables.CPP20_MODMAP_FILE.getVariableName(),
+                  CompileBuildVariables.CPP_MODULE_MODMAP_FILE.getVariableName(),
                   modmapFile.getExecPathString())
               .build();
       createSourceActionHelper(
@@ -1236,7 +1236,7 @@ public final class CcCompilationHelper {
               actionConstructionContext,
               label,
               CppHelper.getArtifactNameForCategory(
-                  ccToolchain, ArtifactCategory.CPP20_MODULES_MODMAP, outputName),
+                  ccToolchain, ArtifactCategory.CPP_MODULES_MODMAP, outputName),
               configuration);
       // all path/to/bmi are put in .modmap.input file,
       // which is convenient to get all bmi in CppCompileAction
@@ -1245,11 +1245,11 @@ public final class CcCompilationHelper {
               actionConstructionContext,
               label,
               CppHelper.getArtifactNameForCategory(
-                  ccToolchain, ArtifactCategory.CPP20_MODULES_MODMAP_INPUT, outputName),
+                  ccToolchain, ArtifactCategory.CPP_MODULES_MODMAP_INPUT, outputName),
               configuration);
       var ddiOutputName =
           CppHelper.getArtifactNameForCategory(
-              ccToolchain, ArtifactCategory.CPP20_MODULES_DDI, outputName);
+              ccToolchain, ArtifactCategory.CPP_MODULES_DDI, outputName);
       Artifact ddiFile =
           CppHelper.getCompileOutputArtifact(
               actionConstructionContext, label, ddiOutputName, configuration);
@@ -1272,7 +1272,7 @@ public final class CcCompilationHelper {
       ImmutableMap<String, String> additionalBuildVariables =
           ImmutableMap.<String, String>builder()
               .put(
-                  CompileBuildVariables.CPP20_MODMAP_FILE.getVariableName(),
+                  CompileBuildVariables.CPP_MODULE_MODMAP_FILE.getVariableName(),
                   modmapFile.getExecPathString())
               .build();
       createSourceActionHelper(
@@ -1815,7 +1815,7 @@ public final class CcCompilationHelper {
       String outputName)
       throws RuleErrorException, EvalException, InterruptedException {
     var scanDepsBuilder = initializeCompileAction(sourceArtifact);
-    scanDepsBuilder.setActionName(CppActionNames.CPP20_DEPS_SCANNING);
+    scanDepsBuilder.setActionName(CppActionNames.CPP_MODULE_DEPS_SCANNING);
     Artifact dotdFile;
     if (scanDepsBuilder.dotdFilesEnabled() && scanDepsBuilder.useDotdFile(sourceArtifact)) {
       String dotdFileName =

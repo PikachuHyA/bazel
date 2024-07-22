@@ -60,10 +60,12 @@ public final class CppCompileActionBuilder {
   private Artifact dotdFile;
   private Artifact diagnosticsFile;
   private Artifact gcnoFile;
-  private CcCompilationContext ccCompilationContext = CcCompilationContext.EMPTY;
+  private CcCompilationContext ccCompilationContext =
+      CcCompilationContext.EMPTY;
   private final List<String> pluginOpts = new ArrayList<>();
   private CoptsFilter coptsFilter = CoptsFilter.alwaysPasses();
-  private ImmutableList<PathFragment> extraSystemIncludePrefixes = ImmutableList.of();
+  private ImmutableList<PathFragment> extraSystemIncludePrefixes =
+      ImmutableList.of();
   private boolean usePic;
   private final CppConfiguration cppConfiguration;
   private final ArrayList<Artifact> additionalIncludeScanningRoots;
@@ -73,7 +75,8 @@ public final class CppCompileActionBuilder {
   private final CcToolchainProvider ccToolchain;
   @Nullable private String actionName;
   private ImmutableList<Artifact> buildInfoHeaderArtifacts = ImmutableList.of();
-  private NestedSet<Artifact> cacheKeyInputs = NestedSetBuilder.emptySet(Order.STABLE_ORDER);
+  private NestedSet<Artifact> cacheKeyInputs =
+      NestedSetBuilder.emptySet(Order.STABLE_ORDER);
   private NestedSet<Artifact> additionalPrunableHeaders =
       NestedSetBuilder.emptySet(Order.STABLE_ORDER);
   private ImmutableList<Artifact> additionalOutputs = ImmutableList.of();
@@ -82,17 +85,19 @@ public final class CppCompileActionBuilder {
   /** Creates a builder from a rule and configuration. */
   public CppCompileActionBuilder(
       ActionConstructionContext actionConstructionContext,
-      CcToolchainProvider ccToolchain,
-      BuildConfigurationValue configuration,
+      CcToolchainProvider ccToolchain, BuildConfigurationValue configuration,
       CppSemantics cppSemantics) {
 
     ActionOwner actionOwner = null;
-    if (actionConstructionContext instanceof RuleContext ruleContext
-        && ruleContext.useAutoExecGroups()) {
-      actionOwner = actionConstructionContext.getActionOwner(cppSemantics.getCppToolchainType());
+    if (actionConstructionContext instanceof RuleContext ruleContext &&
+        ruleContext.useAutoExecGroups()) {
+      actionOwner = actionConstructionContext.getActionOwner(
+          cppSemantics.getCppToolchainType());
     }
 
-    this.owner = actionOwner == null ? actionConstructionContext.getActionOwner() : actionOwner;
+    this.owner = actionOwner == null
+                     ? actionConstructionContext.getActionOwner()
+                     : actionOwner;
     this.shareable = false;
     this.configuration = configuration;
     this.cppConfiguration = configuration.getFragment(CppConfiguration.class);
@@ -110,10 +115,12 @@ public final class CppCompileActionBuilder {
     this.shareable = other.shareable;
     this.featureConfiguration = other.featureConfiguration;
     this.sourceFile = other.sourceFile;
-    this.mandatoryInputsBuilder = NestedSetBuilder.<Artifact>stableOrder()
-        .addTransitive(other.mandatoryInputsBuilder.build());
+    this.mandatoryInputsBuilder =
+        NestedSetBuilder.<Artifact>stableOrder().addTransitive(
+            other.mandatoryInputsBuilder.build());
     this.additionalIncludeScanningRoots = new ArrayList<>();
-    this.additionalIncludeScanningRoots.addAll(other.additionalIncludeScanningRoots);
+    this.additionalIncludeScanningRoots.addAll(
+        other.additionalIncludeScanningRoots);
     this.outputFile = other.outputFile;
     this.dwoFile = other.dwoFile;
     this.ltoIndexingFile = other.ltoIndexingFile;
@@ -140,18 +147,18 @@ public final class CppCompileActionBuilder {
   public CppCompileActionBuilder setSourceFile(Artifact sourceFile) {
     Preconditions.checkState(
         this.sourceFile == null,
-        "New source file %s trying to overwrite old source file %s",
-        sourceFile,
+        "New source file %s trying to overwrite old source file %s", sourceFile,
         this.sourceFile);
     return setSourceFileUnchecked(sourceFile);
   }
 
-  public CppCompileActionBuilder setSourceFile(Artifact.TreeFileArtifact sourceFile) {
+  public CppCompileActionBuilder
+  setSourceFile(Artifact.TreeFileArtifact sourceFile) {
     Preconditions.checkState(
         !(this.sourceFile instanceof Artifact.TreeFileArtifact),
-        "New source file %s trying to overwrite old source file %s also a tree file artifact",
-        sourceFile,
-        this.sourceFile);
+        "New source file %s trying to overwrite old source file %s also a "
+            + "tree file artifact",
+        sourceFile, this.sourceFile);
     return setSourceFileUnchecked(sourceFile);
   }
 
@@ -162,14 +169,13 @@ public final class CppCompileActionBuilder {
   }
 
   @CanIgnoreReturnValue
-  public CppCompileActionBuilder setAdditionalOutputs(ImmutableList<Artifact> additionalOutputs) {
+  public CppCompileActionBuilder
+  setAdditionalOutputs(ImmutableList<Artifact> additionalOutputs) {
     this.additionalOutputs = additionalOutputs;
     return this;
   }
 
-  public Artifact getSourceFile() {
-    return sourceFile;
-  }
+  public Artifact getSourceFile() { return sourceFile; }
 
   public CcCompilationContext getCcCompilationContext() {
     return ccCompilationContext;
@@ -187,7 +193,8 @@ public final class CppCompileActionBuilder {
     if (CppFileTypes.CPP_MODULE_MAP.matches(sourcePath)) {
       return CppActionNames.CPP_MODULE_COMPILE;
     } else if (CppFileTypes.CPP_HEADER.matches(sourcePath)) {
-      // TODO(bazel-team): Handle C headers that probably don't work in C++ mode.
+      // TODO(bazel-team): Handle C headers that probably don't work in C++
+      // mode.
       if (featureConfiguration.isEnabled(CppRuleClasses.PARSE_HEADERS)) {
         return CppActionNames.CPP_HEADER_PARSING;
       }
@@ -211,18 +218,21 @@ public final class CppCompileActionBuilder {
     } else if (CppFileTypes.CPP_MODULE.matches(sourcePath)) {
       return CppActionNames.CPP_MODULE_CODEGEN;
     }
-    // CcCompilationHelper ensures CppCompileAction only gets instantiated for supported file types.
+    // CcCompilationHelper ensures CppCompileAction only gets instantiated for
+    // supported file types.
     throw new IllegalStateException();
   }
 
   /**
-   * Builds the Action as configured and performs some validations on the action. Uses {@link
-   * RuleContext#throwWithRuleError(String)} to report errors. Prefer this method over {@link
-   * CppCompileActionBuilder#buildOrThrowIllegalStateException()} whenever possible (meaning
-   * whenever you have access to {@link RuleContext}).
+   * Builds the Action as configured and performs some validations on the
+   * action. Uses {@link RuleContext#throwWithRuleError(String)} to report
+   * errors. Prefer this method over {@link
+   * CppCompileActionBuilder#buildOrThrowIllegalStateException()} whenever
+   * possible (meaning whenever you have access to {@link RuleContext}).
    *
-   * <p>This method may be called multiple times to create multiple compile actions (usually after
-   * calling some setters to modify the generated action).
+   * <p>This method may be called multiple times to create multiple compile
+   * actions (usually after calling some setters to modify the generated
+   * action).
    */
   CppCompileAction buildOrThrowRuleError(RuleErrorConsumer ruleErrorConsumer)
       throws RuleErrorException {
@@ -236,13 +246,15 @@ public final class CppCompileActionBuilder {
   }
 
   /**
-   * Builds the Action as configured and performs some validations on the action. Throws {@link
-   * IllegalStateException} to report errors. Prefer {@link
-   * CppCompileActionBuilder#buildOrThrowRuleError(RuleErrorConsumer)} over this method whenever
-   * possible (meaning whenever you have access to {@link RuleContext}).
+   * Builds the Action as configured and performs some validations on the
+   * action. Throws {@link IllegalStateException} to report errors. Prefer
+   * {@link CppCompileActionBuilder#buildOrThrowRuleError(RuleErrorConsumer)}
+   * over this method whenever possible (meaning whenever you have access to
+   * {@link RuleContext}).
    *
-   * <p>This method may be called multiple times to create multiple compile actions (usually after
-   * calling some setters to modify the generated action).
+   * <p>This method may be called multiple times to create multiple compile
+   * actions (usually after calling some setters to modify the generated
+   * action).
    */
   public CppCompileAction buildOrThrowIllegalStateException() {
     try {
@@ -254,17 +266,19 @@ public final class CppCompileActionBuilder {
 
   static final class UnconfiguredActionConfigException extends Exception {
     private UnconfiguredActionConfigException(String actionName) {
-      super(String.format("Expected action_config for '%s' to be configured", actionName));
+      super(String.format("Expected action_config for '%s' to be configured",
+                          actionName));
     }
   }
 
   /**
-   * Builds the Action as configured and performs some validations on the action. Uses given {@link
-   * Consumer} to collect validation errors.
+   * Builds the Action as configured and performs some validations on the
+   * action. Uses given {@link Consumer} to collect validation errors.
    */
-  public CppCompileAction buildAndVerify() throws UnconfiguredActionConfigException, EvalException {
-    // This must be set either to false or true by CppSemantics, otherwise someone forgot to call
-    // finalizeCompileActionBuilder on this builder.
+  public CppCompileAction buildAndVerify()
+      throws UnconfiguredActionConfigException, EvalException {
+    // This must be set either to false or true by CppSemantics, otherwise
+    // someone forgot to call finalizeCompileActionBuilder on this builder.
     Preconditions.checkNotNull(shouldScanIncludes);
     Preconditions.checkNotNull(featureConfiguration);
     boolean useHeaderModules = useHeaderModules();
@@ -272,7 +286,7 @@ public final class CppCompileActionBuilder {
     String actionName = getActionName();
     if (featureConfiguration.actionIsConfigured(actionName)) {
       for (String executionRequirement :
-          featureConfiguration.getToolRequirementsForAction(actionName)) {
+           featureConfiguration.getToolRequirementsForAction(actionName)) {
         executionInfo.put(executionRequirement, "");
       }
     } else {
@@ -288,57 +302,38 @@ public final class CppCompileActionBuilder {
     NestedSet<Artifact> prunableHeaders = additionalPrunableHeaders;
 
     configuration.modifyExecutionInfo(
-        executionInfo,
-        CppCompileAction.actionNameToMnemonic(
-            actionName, featureConfiguration, cppConfiguration.useCppCompileHeaderMnemonic()));
+        executionInfo, CppCompileAction.actionNameToMnemonic(
+                           actionName, featureConfiguration,
+                           cppConfiguration.useCppCompileHeaderMnemonic()));
 
     // Copying the collections is needed to make the builder reusable.
     CppCompileAction action;
-    action =
-        new CppCompileAction(
-            owner,
-            featureConfiguration,
-            variables,
-            sourceFile,
-            configuration,
-            shareable,
-            shouldScanIncludes,
-            usePic,
-            useHeaderModules,
-            realMandatoryInputs,
-            realMandatorySpawnInputs,
-            getBuiltinIncludeFiles(),
-            prunableHeaders,
-            outputFile,
-            dotdFile,
-            diagnosticsFile,
-            gcnoFile,
-            dwoFile,
-            ltoIndexingFile,
-            ccCompilationContext,
-            coptsFilter,
-            ImmutableList.copyOf(additionalIncludeScanningRoots),
-            ImmutableMap.copyOf(executionInfo),
-            actionName,
-            cppSemantics,
-            getBuiltinIncludeDirectories(),
-            ccToolchain.getGrepIncludes(),
-            additionalOutputs,
-            moduleFiles,
-            modmapInputFile);
+    action = new CppCompileAction(
+        owner, featureConfiguration, variables, sourceFile, configuration,
+        shareable, shouldScanIncludes, usePic, useHeaderModules,
+        realMandatoryInputs, realMandatorySpawnInputs, getBuiltinIncludeFiles(),
+        prunableHeaders, outputFile, dotdFile, diagnosticsFile, gcnoFile,
+        dwoFile, ltoIndexingFile, ccCompilationContext, coptsFilter,
+        ImmutableList.copyOf(additionalIncludeScanningRoots),
+        ImmutableMap.copyOf(executionInfo), actionName, cppSemantics,
+        getBuiltinIncludeDirectories(), ccToolchain.getGrepIncludes(),
+        additionalOutputs, moduleFiles, modmapInputFile);
     return action;
   }
 
-  private ImmutableList<Artifact> getBuiltinIncludeFiles() throws EvalException {
-    ImmutableList<Artifact> builtinIncludeFiles = ccToolchain.getBuiltinIncludeFiles();
+  private ImmutableList<Artifact> getBuiltinIncludeFiles()
+      throws EvalException {
+    ImmutableList<Artifact> builtinIncludeFiles =
+        ccToolchain.getBuiltinIncludeFiles();
     if (buildInfoHeaderArtifacts.isEmpty()) {
       return builtinIncludeFiles;
     }
     if (builtinIncludeFiles.isEmpty()) {
       return buildInfoHeaderArtifacts;
     }
-    return ImmutableList.<Artifact>builderWithExpectedSize(
-            builtinIncludeFiles.size() + buildInfoHeaderArtifacts.size())
+    return ImmutableList
+        .<Artifact>builderWithExpectedSize(builtinIncludeFiles.size() +
+                                           buildInfoHeaderArtifacts.size())
         .addAll(builtinIncludeFiles)
         .addAll(buildInfoHeaderArtifacts)
         .build();
@@ -348,13 +343,18 @@ public final class CppCompileActionBuilder {
     return featureConfiguration.isEnabled(CppRuleClasses.PARSE_SHOWINCLUDES);
   }
 
-  /** Returns the list of mandatory inputs for the {@link CppCompileAction} as configured. */
+  /**
+   * Returns the list of mandatory inputs for the {@link CppCompileAction} as
+   * configured.
+   */
   NestedSet<Artifact> buildMandatoryInputs() throws EvalException {
-    NestedSetBuilder<Artifact> realMandatoryInputsBuilder = NestedSetBuilder.compileOrder();
+    NestedSetBuilder<Artifact> realMandatoryInputsBuilder =
+        NestedSetBuilder.compileOrder();
     realMandatoryInputsBuilder.addTransitive(mandatoryInputsBuilder.build());
     realMandatoryInputsBuilder.addAll(getBuiltinIncludeFiles());
     if (useHeaderModules() && !shouldScanIncludes) {
-      realMandatoryInputsBuilder.addTransitive(ccCompilationContext.getTransitiveModules(usePic));
+      realMandatoryInputsBuilder.addTransitive(
+          ccCompilationContext.getTransitiveModules(usePic));
     }
     ccCompilationContext.addAdditionalInputs(realMandatoryInputsBuilder);
     realMandatoryInputsBuilder.add(Preconditions.checkNotNull(sourceFile));
@@ -362,17 +362,17 @@ public final class CppCompileActionBuilder {
       realMandatoryInputsBuilder.add(ccToolchain.getGrepIncludes());
     }
     if (!shouldScanIncludes && dotdFile == null && !shouldParseShowIncludes()) {
-      realMandatoryInputsBuilder.addTransitive(ccCompilationContext.getDeclaredIncludeSrcs());
+      realMandatoryInputsBuilder.addTransitive(
+          ccCompilationContext.getDeclaredIncludeSrcs());
       realMandatoryInputsBuilder.addTransitive(additionalPrunableHeaders);
     }
-    if (CppActionNames.CPP20_DEPS_SCANNING.equals(actionName)) {
+    if (CppActionNames.CPP_MODULE_DEPS_SCANNING.equals(actionName)) {
       // scan deps, do nothing
-    }
-    else if (CppCompileAction.isCpp20ModuleCompilationAction(actionName)
-            || CppFileTypes.CPP_SOURCE.matches(sourceFile.getExecPath())) {
+    } else if (CppCompileAction.isCpp20ModuleCompilationAction(actionName) ||
+               CppFileTypes.CPP_SOURCE.matches(sourceFile.getExecPath())) {
       // C++20 module compile and codegen
       // or C++ source compile
-      if (featureConfiguration.isEnabled(CppRuleClasses.CPP20_MODULES)) {
+      if (featureConfiguration.isEnabled(CppRuleClasses.CPP_MODULES)) {
         Preconditions.checkNotNull(modmapFile);
         Preconditions.checkNotNull(modmapInputFile);
         realMandatoryInputsBuilder.add(modmapFile).add(modmapInputFile);
@@ -381,9 +381,7 @@ public final class CppCompileActionBuilder {
     return realMandatoryInputsBuilder.build();
   }
 
-  NestedSet<Artifact> getPrunableHeaders() {
-    return additionalPrunableHeaders;
-  }
+  NestedSet<Artifact> getPrunableHeaders() { return additionalPrunableHeaders; }
 
   NestedSet<Artifact> getInputsForInvalidation() {
     return ccCompilationContext.getTransitiveCompilationPrerequisites();
@@ -392,26 +390,24 @@ public final class CppCompileActionBuilder {
   private boolean useHeaderModules(Artifact sourceFile) {
     Preconditions.checkNotNull(featureConfiguration);
     Preconditions.checkNotNull(sourceFile);
-    return featureConfiguration.isEnabled(CppRuleClasses.USE_HEADER_MODULES)
-        && (sourceFile.isFileType(CppFileTypes.CPP_SOURCE)
-            || sourceFile.isFileType(CppFileTypes.CPP_HEADER)
-            || sourceFile.isFileType(CppFileTypes.CPP_MODULE_MAP));
+    return featureConfiguration.isEnabled(CppRuleClasses.USE_HEADER_MODULES) &&
+        (sourceFile.isFileType(CppFileTypes.CPP_SOURCE) ||
+         sourceFile.isFileType(CppFileTypes.CPP_HEADER) ||
+         sourceFile.isFileType(CppFileTypes.CPP_MODULE_MAP));
   }
 
-  private boolean useHeaderModules() {
-    return useHeaderModules(sourceFile);
-  }
+  private boolean useHeaderModules() { return useHeaderModules(sourceFile); }
 
   /**
-   * Set action name that is used to pick the right action_config and features from {@link
-   * FeatureConfiguration}. By default the action name is decided from the source filetype.
+   * Set action name that is used to pick the right action_config and features
+   * from {@link FeatureConfiguration}. By default the action name is decided
+   * from the source filetype.
    */
   @CanIgnoreReturnValue
   public CppCompileActionBuilder setActionName(String actionName) {
     Preconditions.checkState(
         this.actionName == null,
-        "New actionName %s trying to overwrite old name %s",
-        actionName,
+        "New actionName %s trying to overwrite old name %s", actionName,
         this.actionName);
     this.actionName = actionName;
     return this;
@@ -419,8 +415,8 @@ public final class CppCompileActionBuilder {
 
   /** Sets the feature configuration to be used for the action. */
   @CanIgnoreReturnValue
-  public CppCompileActionBuilder setFeatureConfiguration(
-      FeatureConfiguration featureConfiguration) {
+  public CppCompileActionBuilder
+  setFeatureConfiguration(FeatureConfiguration featureConfiguration) {
     Preconditions.checkNotNull(featureConfiguration);
     this.featureConfiguration = featureConfiguration;
     return this;
@@ -438,22 +434,20 @@ public final class CppCompileActionBuilder {
   }
 
   /** Returns the build variables to be used for the action. */
-  public CcToolchainVariables getVariables() {
-    return variables;
-  }
+  public CcToolchainVariables getVariables() { return variables; }
 
   @CanIgnoreReturnValue
-  public CppCompileActionBuilder addExecutionInfo(Map<String, String> executionInfo) {
+  public CppCompileActionBuilder
+  addExecutionInfo(Map<String, String> executionInfo) {
     this.executionInfo.putAll(executionInfo);
     return this;
   }
 
-  Map<String, String> getExecutionInfo() {
-    return executionInfo;
-  }
+  Map<String, String> getExecutionInfo() { return executionInfo; }
 
   @CanIgnoreReturnValue
-  public CppCompileActionBuilder addMandatoryInputs(NestedSet<Artifact> artifacts) {
+  public CppCompileActionBuilder
+  addMandatoryInputs(NestedSet<Artifact> artifacts) {
     mandatoryInputsBuilder.addTransitive(artifacts);
     return this;
   }
@@ -465,7 +459,8 @@ public final class CppCompileActionBuilder {
   }
 
   @CanIgnoreReturnValue
-  public CppCompileActionBuilder addTransitiveMandatoryInputs(NestedSet<Artifact> artifacts) {
+  public CppCompileActionBuilder
+  addTransitiveMandatoryInputs(NestedSet<Artifact> artifacts) {
     mandatoryInputsBuilder.addTransitive(artifacts);
     return this;
   }
@@ -478,22 +473,24 @@ public final class CppCompileActionBuilder {
   }
 
   public boolean useDotdFile(Artifact sourceFile) {
-    return CppFileTypes.headerDiscoveryRequired(sourceFile) && !useHeaderModules(sourceFile);
+    return CppFileTypes.headerDiscoveryRequired(sourceFile) &&
+        !useHeaderModules(sourceFile);
   }
 
   public boolean dotdFilesEnabled() {
-    return cppSemantics.needsDotdInputPruning(configuration)
-        && !shouldParseShowIncludes()
-        && !featureConfiguration.isEnabled(CppRuleClasses.NO_DOTD_FILE);
+    return cppSemantics.needsDotdInputPruning(configuration) &&
+        !shouldParseShowIncludes() &&
+        !featureConfiguration.isEnabled(CppRuleClasses.NO_DOTD_FILE);
   }
 
   public boolean serializedDiagnosticsFilesEnabled() {
-    return featureConfiguration.isEnabled(CppRuleClasses.SERIALIZED_DIAGNOSTICS_FILE);
+    return featureConfiguration.isEnabled(
+        CppRuleClasses.SERIALIZED_DIAGNOSTICS_FILE);
   }
 
   @CanIgnoreReturnValue
-  public CppCompileActionBuilder setOutputs(
-      Artifact outputFile, Artifact dotdFile, Artifact diagnosticsFile) {
+  public CppCompileActionBuilder
+  setOutputs(Artifact outputFile, Artifact dotdFile, Artifact diagnosticsFile) {
     this.outputFile = outputFile;
     this.dotdFile = dotdFile;
     this.diagnosticsFile = diagnosticsFile;
@@ -501,33 +498,29 @@ public final class CppCompileActionBuilder {
   }
 
   @CanIgnoreReturnValue
-  public CppCompileActionBuilder setOutputs(
-      ActionConstructionContext actionConstructionContext,
-      RuleErrorConsumer ruleErrorConsumer,
-      Label label,
-      ArtifactCategory outputCategory,
-      String outputName)
+  public CppCompileActionBuilder
+  setOutputs(ActionConstructionContext actionConstructionContext,
+             RuleErrorConsumer ruleErrorConsumer, Label label,
+             ArtifactCategory outputCategory, String outputName)
       throws RuleErrorException {
-    this.outputFile =
-        CppHelper.getCompileOutputArtifact(
-            actionConstructionContext,
-            label,
-            CppHelper.getArtifactNameForCategory(ccToolchain, outputCategory, outputName),
-            configuration);
+    this.outputFile = CppHelper.getCompileOutputArtifact(
+        actionConstructionContext, label,
+        CppHelper.getArtifactNameForCategory(ccToolchain, outputCategory,
+                                             outputName),
+        configuration);
     if (dotdFilesEnabled() && useDotdFile(sourceFile)) {
-      String dotdFileName = CppHelper.getDotdFileName(ccToolchain, outputCategory, outputName);
-      dotdFile =
-          CppHelper.getCompileOutputArtifact(
-              actionConstructionContext, label, dotdFileName, configuration);
+      String dotdFileName =
+          CppHelper.getDotdFileName(ccToolchain, outputCategory, outputName);
+      dotdFile = CppHelper.getCompileOutputArtifact(
+          actionConstructionContext, label, dotdFileName, configuration);
     } else {
       dotdFile = null;
     }
     if (serializedDiagnosticsFilesEnabled()) {
-      String diagnosticsFileName =
-          CppHelper.getDiagnosticsFileName(ccToolchain, outputCategory, outputName);
-      diagnosticsFile =
-          CppHelper.getCompileOutputArtifact(
-              actionConstructionContext, label, diagnosticsFileName, configuration);
+      String diagnosticsFileName = CppHelper.getDiagnosticsFileName(
+          ccToolchain, outputCategory, outputName);
+      diagnosticsFile = CppHelper.getCompileOutputArtifact(
+          actionConstructionContext, label, diagnosticsFileName, configuration);
     } else {
       diagnosticsFile = null;
     }
@@ -541,8 +534,9 @@ public final class CppCompileActionBuilder {
   }
 
   /**
-   * Set the minimized bitcode file emitted by this (ThinLTO) compilation that can be used in place
-   * of the full bitcode outputFile in the LTO indexing step.
+   * Set the minimized bitcode file emitted by this (ThinLTO) compilation that
+   * can be used in place of the full bitcode outputFile in the LTO indexing
+   * step.
    */
   @CanIgnoreReturnValue
   public CppCompileActionBuilder setLtoIndexingFile(Artifact ltoIndexingFile) {
@@ -550,17 +544,11 @@ public final class CppCompileActionBuilder {
     return this;
   }
 
-  public Artifact getOutputFile() {
-    return outputFile;
-  }
+  public Artifact getOutputFile() { return outputFile; }
 
-  public Artifact getDotdFile() {
-    return this.dotdFile;
-  }
+  public Artifact getDotdFile() { return this.dotdFile; }
 
-  public Artifact getDiagnosticsFile() {
-    return this.diagnosticsFile;
-  }
+  public Artifact getDiagnosticsFile() { return this.diagnosticsFile; }
 
   @CanIgnoreReturnValue
   public CppCompileActionBuilder setGcnoFile(Artifact gcnoFile) {
@@ -569,8 +557,8 @@ public final class CppCompileActionBuilder {
   }
 
   @CanIgnoreReturnValue
-  public CppCompileActionBuilder setCcCompilationContext(
-      CcCompilationContext ccCompilationContext) {
+  public CppCompileActionBuilder
+  setCcCompilationContext(CcCompilationContext ccCompilationContext) {
     this.ccCompilationContext = ccCompilationContext;
     return this;
   }
@@ -589,18 +577,15 @@ public final class CppCompileActionBuilder {
   }
 
   @CanIgnoreReturnValue
-  public CppCompileActionBuilder setShouldScanIncludes(boolean shouldScanIncludes) {
+  public CppCompileActionBuilder
+  setShouldScanIncludes(boolean shouldScanIncludes) {
     this.shouldScanIncludes = shouldScanIncludes;
     return this;
   }
 
-  public boolean getShouldScanIncludes() {
-    return shouldScanIncludes;
-  }
+  public boolean getShouldScanIncludes() { return shouldScanIncludes; }
 
-  public CcToolchainProvider getToolchain() {
-    return ccToolchain;
-  }
+  public CcToolchainProvider getToolchain() { return ccToolchain; }
 
   @CanIgnoreReturnValue
   public CppCompileActionBuilder setCoptsFilter(CoptsFilter coptsFilter) {
@@ -608,9 +593,7 @@ public final class CppCompileActionBuilder {
     return this;
   }
 
-  CoptsFilter getCoptsFilter() {
-    return coptsFilter;
-  }
+  CoptsFilter getCoptsFilter() { return coptsFilter; }
 
   @CanIgnoreReturnValue
   public CppCompileActionBuilder setBuildInfoHeaderArtifacts(
@@ -620,7 +603,8 @@ public final class CppCompileActionBuilder {
   }
 
   @CanIgnoreReturnValue
-  public CppCompileActionBuilder setCacheKeyInputs(NestedSet<Artifact> cacheKeyInputs) {
+  public CppCompileActionBuilder
+  setCacheKeyInputs(NestedSet<Artifact> cacheKeyInputs) {
     this.cacheKeyInputs = cacheKeyInputs;
     return this;
   }
@@ -634,35 +618,39 @@ public final class CppCompileActionBuilder {
   }
 
   @CanIgnoreReturnValue
-  public CppCompileActionBuilder setAdditionalPrunableHeaders(
-      NestedSet<Artifact> additionalPrunableHeaders) {
-    this.additionalPrunableHeaders = Preconditions.checkNotNull(additionalPrunableHeaders);
+  public CppCompileActionBuilder
+  setAdditionalPrunableHeaders(NestedSet<Artifact> additionalPrunableHeaders) {
+    this.additionalPrunableHeaders =
+        Preconditions.checkNotNull(additionalPrunableHeaders);
     return this;
   }
 
-    @CanIgnoreReturnValue
-    public CppCompileActionBuilder setModmapFile(Artifact modmapFile) {
-        this.modmapFile = modmapFile;
-        return this;
-    }
+  @CanIgnoreReturnValue
+  public CppCompileActionBuilder setModmapFile(Artifact modmapFile) {
+    this.modmapFile = modmapFile;
+    return this;
+  }
 
-    @CanIgnoreReturnValue
-    public CppCompileActionBuilder setModmapInputFile(Artifact modmapInputFile) {
-        this.modmapInputFile = modmapInputFile;
-        return this;
-    }
+  @CanIgnoreReturnValue
+  public CppCompileActionBuilder setModmapInputFile(Artifact modmapInputFile) {
+    this.modmapInputFile = modmapInputFile;
+    return this;
+  }
 
-    @CanIgnoreReturnValue
-    public CppCompileActionBuilder setModuleFiles(NestedSet<Artifact.DerivedArtifact> moduleFiles) {
-        this.moduleFiles = moduleFiles;
-        return this;
-    }
-  ImmutableList<PathFragment> getBuiltinIncludeDirectories() throws EvalException {
+  @CanIgnoreReturnValue
+  public CppCompileActionBuilder
+  setModuleFiles(NestedSet<Artifact.DerivedArtifact> moduleFiles) {
+    this.moduleFiles = moduleFiles;
+    return this;
+  }
+  ImmutableList<PathFragment> getBuiltinIncludeDirectories()
+      throws EvalException {
     return ccToolchain.getBuiltInIncludeDirectories();
   }
 
   public boolean shouldCompileHeaders() {
     Preconditions.checkNotNull(featureConfiguration);
-    return CcToolchainProvider.shouldProcessHeaders(featureConfiguration, cppConfiguration);
+    return CcToolchainProvider.shouldProcessHeaders(featureConfiguration,
+                                                    cppConfiguration);
   }
 }
