@@ -2,9 +2,9 @@ name: Bazel
 
 on:
   push:
-    branches: [ ci ]
+    branches: [ ci, cxx20-modules-support-patch-4-dev2_dev-ci ]
   pull_request:
-    branches: [ ci ]
+    branches: [ ci, cxx20-modules-support-patch-4-dev2_dev-ci ]
 
 jobs:
   build:
