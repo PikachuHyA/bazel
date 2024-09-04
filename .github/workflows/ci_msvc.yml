@@ -1,0 +1,29 @@
+name: Bazel MSVC
+
+on:
+  push:
+    branches: [ ci, cxx20-modules-support-patch-4-ci ]
+  pull_request:
+    branches: [ ci, cxx20-modules-support-patch-4-ci ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Build
+        working-directory: ${{github.workspace}}
+        run: bazel build //src:bazel.exe
+
+      - name: Test
+        working-directory: ${{github.workspace}}
+        run: bazel test src/test/java/com/google/devtools/build/lib/rules/cpp/...
+
+      - name: Upload bazel
+        uses: actions/upload-artifact@v4
+        with:
+          name: bazel
+          path: |
+            bazel-bin/src/bazel.exe
